@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { getSession } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { computeActionStats, readStore } from "@/lib/store";
 
 export default async function AppHomePage() {
   const session = await getSession();
@@ -12,6 +12,7 @@ export default async function AppHomePage() {
     (a) => a.owner === session.userId && a.status === "pending",
   );
   const mineAudits = store.audits.filter((a) => a.owner === session.userId);
+  const stats = computeActionStats(mineAudits);
 
   return (
     <AppShell
@@ -28,10 +29,24 @@ export default async function AppHomePage() {
     >
       <h1>Dashboard</h1>
       <p>已登录：{session.displayName}</p>
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", marginTop: 24 }}>
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
+          marginTop: 24,
+        }}
+      >
         <Stat label="Pending approvals" value={String(mineApprovals.length)} href="/app/approvals" />
         <Stat label="Audits" value={String(mineAudits.length)} href="/app/audits" />
-        <Stat label="Policies" value={String(Object.keys(store.policies).length)} href="/app/policies" />
+        <Stat label="allow" value={String(stats.allow)} href="/app/audits" />
+        <Stat label="deny" value={String(stats.deny)} href="/app/audits" />
+        <Stat label="redact" value={String(stats.redact)} href="/app/audits" />
+        <Stat
+          label="require_approval"
+          value={String(stats.require_approval)}
+          href="/app/approvals"
+        />
       </div>
     </AppShell>
   );
