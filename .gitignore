@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local
+.env.*.local
+*.log
+.mcp-guardian/
+playwright-report/
+test-results/

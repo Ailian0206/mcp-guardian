@@ -2,20 +2,19 @@
 
 > 日期：2026-07-15  
 > 状态：已锁定  
-> 前置条件：Evidence Graph 达到「可公开演示的研究闭环」后再启动 Week 1 编码  
+> 前置条件：仓库已创建；Week 0 CI 绿后进入 Week 1  
 > 决策源：[`product-plan.md`](./product-plan.md)  
-> 执行原则：按周交付可演示增量；每日以验收命令为准；不扩大 P0。
+> 执行原则：按周交付可演示增量；每日以验收命令为准；不扩大 P0。  
+> 变更（2026-07-15）：用户授权直接创建 GitHub 并按计划推进；原「等 Evidence Graph 公开演示」门槛不再阻塞工程实施。
 
 ## 0. 启动门槛（Go / No-Go）
 
-满足以下全部条件才进入 Week 1：
+进入 Week 1 前需满足：
 
-1. Evidence Graph 可公开展示一次完整研究 → 引用报告。  
+1. GitHub 仓库 `Ailian0206/mcp-guardian` 已创建。  
 2. 本仓库已初始化：pnpm workspace、CI 空跑、README 最小版。  
 3. `docs/architecture.md` 已写完模块边界与错误码。  
 4. 开发者机器可运行 Node 22 + pnpm。
-
-未满足时只允许：改文档、补架构、建空仓库，不允许开始业务功能编码。
 
 ## 1. 总览
 
