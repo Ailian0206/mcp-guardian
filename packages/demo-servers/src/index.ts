@@ -90,5 +90,8 @@ export async function startDemoFsStdio(): Promise<void> {
   await server.connect(transport);
 }
 
+export { createDemoShellServer, startDemoShellStdio } from "./shell.js";
+export { createDemoHttpServer, startDemoHttpStdio } from "./http.js";
+
 export const DEMO_SERVER_NAMES = ["demo-fs", "demo-shell", "demo-http"] as const;
 export type DemoServerName = (typeof DEMO_SERVER_NAMES)[number];
