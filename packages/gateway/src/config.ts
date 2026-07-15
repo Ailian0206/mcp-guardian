@@ -16,6 +16,14 @@ export const GuardianConfigSchema = z.object({
   policyFile: z.string().min(1),
   downstreams: z.array(DownstreamConfigSchema).min(1),
   auditDb: z.string().optional(),
+  sync: z
+    .object({
+      enabled: z.boolean().default(false),
+      endpoint: z.string().url().optional(),
+      owner: z.string().default("local-dev"),
+      deviceToken: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type GuardianConfig = z.infer<typeof GuardianConfigSchema>;

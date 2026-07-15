@@ -4,7 +4,6 @@
     { "path": "packages/shared" },
     { "path": "packages/policy-engine" },
     { "path": "packages/gateway" },
-    { "path": "packages/demo-servers" },
-    { "path": "apps/web" }
+    { "path": "packages/demo-servers" }
   ]
 }

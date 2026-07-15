@@ -7,10 +7,11 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc -b",
-    "test": "vitest run",
-    "build": "tsc -b",
+    "typecheck": "tsc -b && pnpm --filter @mcp-guardian/web typecheck",
+    "test": "vitest run && pnpm --filter @mcp-guardian/web test",
+    "build": "tsc -b && pnpm --filter @mcp-guardian/web build",
     "dev:gateway": "pnpm --filter @mcp-guardian/gateway dev",
+    "dev:web": "pnpm --filter @mcp-guardian/web dev",
     "guardian": "node ./packages/gateway/dist/cli.js"
   },
   "devDependencies": {
