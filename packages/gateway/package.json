@@ -1,0 +1,24 @@
+{
+  "name": "@mcp-guardian/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mcp-guardian": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
+    "dev": "node --watch dist/cli.js"
+  },
+  "dependencies": {
+    "@mcp-guardian/policy-engine": "workspace:*",
+    "@mcp-guardian/shared": "workspace:*"
+  }
+}
