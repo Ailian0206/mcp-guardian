@@ -10,7 +10,9 @@
     }
   },
   "bin": {
-    "mcp-guardian-demo-fs": "./dist/fs.js"
+    "mcp-guardian-demo-fs": "./dist/fs.js",
+    "mcp-guardian-demo-shell": "./dist/shell-bin.js",
+    "mcp-guardian-demo-http": "./dist/http-bin.js"
   },
   "scripts": {
     "build": "tsc -b",

@@ -11,6 +11,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { evaluate, loadPolicyFromYaml } from "@mcp-guardian/policy-engine";
 import { ErrorCodes, type PolicyDocument } from "@mcp-guardian/shared";
+import { ApprovalStore } from "./approvals.js";
 import { AuditStore } from "./audit.js";
 import {
   loadGuardianConfig,
@@ -54,7 +55,7 @@ type ToolRoute = { serverName: string; toolName: string; client: Client };
 
 /**
  * 上游 stdio Server ← Guardian 策略 → 下游 MCP Client。
- * Week 1：require_approval 记审计后拒绝（完整审批 Week 2）。
+ * require_approval：写入 pending，阻塞等待 CLI `approvals decide`。
  */
 export async function startProxy(options: {
   configPath: string;
@@ -72,6 +73,7 @@ export async function startProxy(options: {
     ? resolveFromConfigDir(options.configPath, config.auditDb)
     : undefined;
   const audit = new AuditStore(auditDb);
+  const approvals = new ApprovalStore(auditDb);
 
   const clients = new Map<string, Client>();
   const routes = new Map<string, ToolRoute>();
@@ -159,23 +161,59 @@ export async function startProxy(options: {
       return policyError(ErrorCodes.POLICY_DENIED, decision.reasons.join("; "));
     }
 
+    let forwardArgs =
+      decision.action === "redact" ? decision.redacted_args : args;
+
     if (decision.action === "require_approval") {
-      audit.append({
+      const ttl =
+        policy.defaults.approval_ttl_seconds ?? 300;
+      approvals.create({
         id: callId,
         server: route.serverName,
         tool: route.toolName,
-        decision,
-        latencyMs: Date.now() - started,
-        resultStatus: "approval_required_stub",
+        argsRedacted: decision.redacted_args,
+        reasons: decision.reasons,
+        ttlSeconds: ttl,
       });
-      return policyError(
-        ErrorCodes.POLICY_DENIED,
-        `require_approval pending (Week 2): ${decision.reasons.join("; ")}`,
+      // stderr 提示操作者，避免污染 MCP stdio
+      console.error(
+        `[mcp-guardian] approval required id=${callId} server=${route.serverName} tool=${route.toolName}`,
       );
+      console.error(
+        `[mcp-guardian] decide: mcp-guardian approvals decide ${callId} --allow`,
+      );
+      const decided = await approvals.waitUntilDecided(callId);
+      if (decided.status === "denied") {
+        audit.append({
+          id: callId,
+          server: route.serverName,
+          tool: route.toolName,
+          decision,
+          latencyMs: Date.now() - started,
+          resultStatus: "denied_by_user",
+        });
+        return policyError(
+          ErrorCodes.APPROVAL_DENIED,
+          decision.reasons.join("; "),
+        );
+      }
+      if (decided.status === "expired") {
+        audit.append({
+          id: callId,
+          server: route.serverName,
+          tool: route.toolName,
+          decision,
+          latencyMs: Date.now() - started,
+          resultStatus: "approval_expired",
+        });
+        return policyError(
+          ErrorCodes.APPROVAL_EXPIRED,
+          `approval timed out after ${ttl}s`,
+        );
+      }
+      // approved → 继续转发（参数仍用脱敏视图）
+      forwardArgs = decision.redacted_args;
     }
-
-    const forwardArgs =
-      decision.action === "redact" ? decision.redacted_args : args;
 
     try {
       const result = (await route.client.callTool({
@@ -188,7 +226,12 @@ export async function startProxy(options: {
         tool: route.toolName,
         decision,
         latencyMs: Date.now() - started,
-        resultStatus: result.isError ? "downstream_error" : "ok",
+        resultStatus:
+          decision.action === "require_approval"
+            ? "approved_then_allowed"
+            : result.isError
+              ? "downstream_error"
+              : "ok",
       });
       return result;
     } catch (err) {
@@ -212,6 +255,7 @@ export async function startProxy(options: {
 
   return {
     close: async () => {
+      approvals.close();
       audit.close();
       await Promise.all([...clients.values()].map((c) => c.close()));
       await server.close();

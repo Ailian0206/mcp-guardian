@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_SERVER_NAMES, createDemoFsServer } from "./index.js";
+import {
+  DEMO_SERVER_NAMES,
+  createDemoFsServer,
+  createDemoHttpServer,
+  createDemoShellServer,
+} from "./index.js";
 
 describe("demo-servers", () => {
   it("lists three planned demo servers", () => {
@@ -7,7 +12,11 @@ describe("demo-servers", () => {
   });
 
   it("creates demo-fs MCP server instance", () => {
-    const server = createDemoFsServer();
-    expect(server).toBeTruthy();
+    expect(createDemoFsServer()).toBeTruthy();
+  });
+
+  it("creates demo-shell and demo-http servers", () => {
+    expect(createDemoShellServer()).toBeTruthy();
+    expect(createDemoHttpServer()).toBeTruthy();
   });
 });
