@@ -18,6 +18,7 @@ import {
   resolveFromConfigDir,
   type DownstreamConfig,
 } from "./config.js";
+import { registerDevice, SyncClient } from "./sync.js";
 
 function policyError(code: string, message: string): CallToolResult {
   return {
@@ -74,6 +75,18 @@ export async function startProxy(options: {
     : undefined;
   const audit = new AuditStore(auditDb);
   const approvals = new ApprovalStore(auditDb);
+
+  let syncClient: SyncClient | null = null;
+  if (config.sync?.enabled && config.sync.endpoint) {
+    const token =
+      config.sync.deviceToken ??
+      (await registerDevice(config.sync.endpoint, config.sync.owner));
+    syncClient = new SyncClient({
+      endpoint: config.sync.endpoint,
+      deviceToken: token,
+    });
+    console.error(`[mcp-guardian] sync enabled endpoint=${config.sync.endpoint}`);
+  }
 
   const clients = new Map<string, Client>();
   const routes = new Map<string, ToolRoute>();
@@ -182,7 +195,25 @@ export async function startProxy(options: {
       console.error(
         `[mcp-guardian] decide: mcp-guardian approvals decide ${callId} --allow`,
       );
-      const decided = await approvals.waitUntilDecided(callId);
+
+      if (syncClient) {
+        await syncClient.pushAndPull({
+          approvals: [
+            {
+              id: callId,
+              status: "pending",
+              server: route.serverName,
+              tool: route.toolName,
+              args_redacted: decision.redacted_args,
+              reasons: decision.reasons,
+              created_at: new Date().toISOString(),
+              decided_at: null,
+            },
+          ],
+        });
+      }
+
+      const decided = await waitForApproval(approvals, callId, syncClient);
       if (decided.status === "denied") {
         audit.append({
           id: callId,
@@ -276,4 +307,31 @@ export function evalToolCall(options: {
     tool: options.tool,
     args,
   });
+}
+
+/** 本地 CLI 批准与 Web Dashboard 批准均可结束等待 */
+async function waitForApproval(
+  store: ApprovalStore,
+  id: string,
+  syncClient: SyncClient | null,
+) {
+  for (;;) {
+    if (syncClient) {
+      try {
+        const remote = await syncClient.pushAndPull({});
+        const hit = remote.decided.find((d) => d.id === id);
+        if (hit?.status === "approved" || hit?.status === "denied") {
+          store.decide(id, hit.status === "approved");
+        }
+      } catch (err) {
+        console.error(
+          `[mcp-guardian] sync poll failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    const row = store.get(id);
+    if (!row) throw new Error(`approval not found: ${id}`);
+    if (row.status !== "pending") return row;
+    await new Promise((r) => setTimeout(r, 400));
+  }
 }

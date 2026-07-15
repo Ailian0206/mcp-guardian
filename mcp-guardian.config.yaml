@@ -4,3 +4,7 @@ downstreams:
     command: node
     args:
       - ./packages/demo-servers/dist/fs.js
+# sync:
+#   enabled: true
+#   endpoint: http://127.0.0.1:3040
+#   owner: local-dev
