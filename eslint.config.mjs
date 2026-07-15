@@ -9,6 +9,7 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/.next/**",
       "**/.turbo/**",
+      "**/next-env.d.ts",
     ],
   },
   eslint.configs.recommended,
