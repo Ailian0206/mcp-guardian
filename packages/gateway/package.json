@@ -19,6 +19,13 @@
   },
   "dependencies": {
     "@mcp-guardian/policy-engine": "workspace:*",
-    "@mcp-guardian/shared": "workspace:*"
+    "@mcp-guardian/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.6.2",
+    "yaml": "^2.8.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13"
   }
 }

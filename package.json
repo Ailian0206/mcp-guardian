@@ -10,10 +10,12 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "build": "tsc -b",
-    "dev:gateway": "pnpm --filter @mcp-guardian/gateway dev"
+    "dev:gateway": "pnpm --filter @mcp-guardian/gateway dev",
+    "guardian": "node ./packages/gateway/dist/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.3",
     "eslint": "^9.39.2",
     "globals": "^16.5.0",
