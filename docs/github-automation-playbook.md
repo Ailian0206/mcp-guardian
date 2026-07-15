@@ -7,40 +7,54 @@
 
 ## 1. 核心原则（成本优先）
 
-1. **少开 PR**：每次 PR 都会触发 Cursor Bugbot，成本很高。  
-2. **只在模块目标验收完成后开 PR**：模块分支内可以多次本地 commit / push，但**不要**为每个小任务开 PR。  
-3. **开 PR 后把修复权先交给 Bugbot Autofix**：主 Agent **不得与 Autofix 抢修同一 finding**。  
-4. **主进程不干等**：派子代理监听 Bugbot；主进程继续下一开发任务；子代理回报后再审核 Autofix。
+1. **严控 PR 数量**：每次 PR 都会触发 Cursor Bugbot（约 $1–1.5/次），成本高。  
+2. **默认目标：同时最多 1 个开放 PR**；一个合完再开下一个。  
+3. **按「开发计划整周」或更大交付切片开 PR**，不要按天/按小任务开。  
+4. **纯文档 / 状态面板 / playbook 单独不配开 PR**，并入下一周功能 PR。  
+5. **开 PR 后 Autofix 优先**：主 Agent 不得与 Autofix 抢修同一 finding。  
+6. **主进程不干等**：派子代理监听；继续本地开发下一切片（可 commit/push 分支，但**先不开第二个 PR**）。
+
+### 1.1 数量红线（强制）
+
+| 规则 | 要求 |
+| --- | --- |
+| 开放 PR 上限 | **≤ 1**（含 Draft） |
+| 最小开 PR 粒度 | 至少完成 `development-plan` 里 **一整周**验收，或用户明确批准的更大切片 |
+| 禁止单独开 PR | 纯 `docs/`、`PROJECT_STATUS`、AGENT/playbook、拼写/格式 |
+| 仓库起步例外 | 仅允许 **1 次** bootstrap PR（建仓+CI）；之后不得再拆「脚手架 PR / 文档 PR / 小功能 PR」 |
+
+历史教训：本仓库早期连续开到 PR #5，属于违规节奏；后续 Agent 必须按本表执行。
 
 ## 2. 日常闭环
 
 ```text
 main
-  → 拉模块分支 feat/<module>
-  → 分支内小步 commit（本地验证）
-  → 模块验收目标全部通过（lint/typecheck/test/场景）
-  → 推送分支 + 开唯一 Draft PR          ← 本模块只开这一次 PR
-  → 派「Bugbot 监听」子代理（后台）
-  → 主进程立刻开始下一模块开发（新分支，不碰该 PR）
-  → 子代理回报 Autofix / Bugbot 状态
-  → 主进程审核 Autofix：通过则 merge；有问题则在同一 PR 分支直接改并 push（不再开新 PR）
+  → 拉大切片分支 feat/weekN-...
+  → 分支内多日小步 commit（可 push 远程备份，仍不开 PR）
+  → 整周验收通过（lint/typecheck/test/场景）
+  → 确认当前没有其它开放 PR
+  → 开唯一 Draft PR
+  → 派 Bugbot 监听子代理
+  → 主进程继续下一周：只在本地/远程分支开发，等当前 PR 合并后再开下一个 PR
+  → 子代理回报 → 审 Autofix → merge；有问题同分支补修（不新开 PR）
 ```
 
 ### 2.1 何时才允许开 PR
 
 必须同时满足：
 
-- 当前模块的有限任务清单已完成  
-- 本地完整门禁已绿：`pnpm lint && pnpm typecheck && pnpm test`（及该模块场景脚本）  
-- `PROJECT_STATUS.md` 已写清本模块验收结果与不做项  
-- **不是**「先开 PR 再边改边补」
+- 当前开放 PR 数量为 0  
+- 已完成至少一个完整 Week（或用户书面批准的等价大切片）  
+- 本地完整门禁已绿：`pnpm lint && pnpm typecheck && pnpm test`（及该周场景脚本）  
+- `PROJECT_STATUS.md` 已写清本周验收与不做项  
+- 相关文档改动已一并打进同一分支（不另开 docs PR）
 
 禁止：
 
 - 每个小 fix / 文档微调单独开 PR  
 - 模块未验收就开 PR「占坑」  
-- 同一模块为修 Bugbot 再开第二个 PR（应在原 PR 分支继续）
-
+- 同一周为修 Bugbot 再开第二个 PR  
+- 在已有开放 PR 时再开新 PR（除非用户明确要求并行）
 ### 2.2 分支命名
 
 | 类型 | 格式 |
