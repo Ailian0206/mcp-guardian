@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 3040;
+// 固定用 3041，避免与本地 `pnpm dev:web`（3040）抢端口/误复用
+const port = 3041;
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
@@ -14,11 +15,11 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  // 本地临时数据目录，避免污染开发 store
   webServer: {
     command: `MCP_GUARDIAN_WEB_DATA=/tmp/mg-pw-e2e pnpm exec next start --port ${port}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // 禁止复用开发机上的其它 Next 进程，保证数据目录隔离
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

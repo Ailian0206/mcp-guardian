@@ -145,48 +145,49 @@ export function computeActionStats(audits: CloudAudit[]): ActionStats {
 
 export function seedDemoFixtures(): CloudStore {
   const store = readStore();
-  if (store.audits.some((a) => a.id === "demo-audit-1")) {
-    ensurePublicDemo(store);
-    writeStore(store);
-    return store;
-  }
-  store.audits.unshift(
-    {
-      id: "demo-audit-1",
-      ts: new Date().toISOString(),
-      server: "demo-fs",
-      tool: "write_file",
-      action: "deny",
-      matched_rule_id: "deny-system-write",
-      risk: 95,
-      result_status: "denied",
-      args_redacted: { path: "/etc/passwd", content: "***" },
-      reasons: ["拒绝写入系统目录"],
-      owner: "public",
-    },
-    {
-      id: "demo-audit-2",
-      ts: new Date().toISOString(),
-      server: "demo-http",
-      tool: "fetch",
-      action: "redact",
-      matched_rule_id: "redact-http-secrets",
-      risk: 60,
-      result_status: "ok",
-      args_redacted: {
-        url: "https://api.example.com?api_key=***REDACTED***",
-        headers: { authorization: "***REDACTED***" },
+  let dirty = false;
+  // 仅在缺失 seed 时写入，避免 /demo 请求用旧快照覆盖 sync 写入
+  if (!store.audits.some((a) => a.id === "demo-audit-1")) {
+    store.audits.unshift(
+      {
+        id: "demo-audit-1",
+        ts: new Date().toISOString(),
+        server: "demo-fs",
+        tool: "write_file",
+        action: "deny",
+        matched_rule_id: "deny-system-write",
+        risk: 95,
+        result_status: "denied",
+        args_redacted: { path: "/etc/passwd", content: "***" },
+        reasons: ["拒绝写入系统目录"],
+        owner: "public",
       },
-      reasons: ["matched rule redact-http-secrets"],
-      owner: "public",
-    },
-  );
-  ensurePublicDemo(store);
-  writeStore(store);
+      {
+        id: "demo-audit-2",
+        ts: new Date().toISOString(),
+        server: "demo-http",
+        tool: "fetch",
+        action: "redact",
+        matched_rule_id: "redact-http-secrets",
+        risk: 60,
+        result_status: "ok",
+        args_redacted: {
+          url: "https://api.example.com?api_key=***REDACTED***",
+          headers: { authorization: "***REDACTED***" },
+        },
+        reasons: ["matched rule redact-http-secrets"],
+        owner: "public",
+      },
+    );
+    dirty = true;
+  }
+  if (ensurePublicDemo(store)) dirty = true;
+  if (dirty) writeStore(store);
   return store;
 }
 
-function ensurePublicDemo(store: CloudStore): void {
+/** @returns 是否新增了条目（供调用方决定是否落盘） */
+function ensurePublicDemo(store: CloudStore): boolean {
   const extras: CloudAudit[] = [
     {
       id: "demo-audit-3",
@@ -243,9 +244,12 @@ function ensurePublicDemo(store: CloudStore): void {
       owner: "public",
     },
   ];
+  let added = false;
   for (const item of extras) {
     if (!store.audits.some((a) => a.id === item.id)) {
       store.audits.push(item);
+      added = true;
     }
   }
+  return added;
 }
