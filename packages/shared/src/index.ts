@@ -82,6 +82,7 @@ export type Decision = z.infer<typeof DecisionSchema>;
 /** 对外稳定错误码（见 architecture.md） */
 export const ErrorCodes = {
   POLICY_DENIED: "POLICY_DENIED",
+  POLICY_APPROVAL_REQUIRED: "POLICY_APPROVAL_REQUIRED",
   APPROVAL_DENIED: "APPROVAL_DENIED",
   APPROVAL_EXPIRED: "APPROVAL_EXPIRED",
   REDACT_BLOCKED: "REDACT_BLOCKED",

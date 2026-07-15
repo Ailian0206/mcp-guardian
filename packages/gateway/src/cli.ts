@@ -8,7 +8,7 @@ function usage(): never {
   console.error(`Usage:
   ${PACKAGE_NAME} eval --policy <file> --server <name> --tool <name> [--args <json>]
   ${PACKAGE_NAME} start --config <file>
-  ${PACKAGE_NAME} audits list [--limit N]
+  ${PACKAGE_NAME} audits list [--config <file>] [--limit N]
 `);
   process.exit(2);
 }
@@ -42,7 +42,19 @@ async function main(): Promise<void> {
 
   if (cmd === "audits" && rest[0] === "list") {
     const limitRaw = flag(rest, "--limit");
-    const store = new AuditStore();
+    const configPath = flag(rest, "--config");
+    let auditDb: string | undefined;
+    if (configPath) {
+      const config = await import("./config.js").then((m) =>
+        m.loadGuardianConfig(path.resolve(configPath)),
+      );
+      auditDb = config.auditDb
+        ? await import("./config.js").then((m) =>
+            m.resolveFromConfigDir(path.resolve(configPath), config.auditDb!),
+          )
+        : undefined;
+    }
+    const store = new AuditStore(auditDb);
     const rows = store.list(limitRaw ? Number(limitRaw) : 20);
     console.log(JSON.stringify(rows, null, 2));
     store.close();

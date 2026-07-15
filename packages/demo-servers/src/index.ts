@@ -17,7 +17,8 @@ function resolveSafe(relOrAbs: string): string {
   // 策略层用 /workspace/...；物理落在 demo root 下
   const normalized = relOrAbs.replace(/^\/workspace\/?/, "");
   const full = path.resolve(root, normalized);
-  if (!full.startsWith(root)) {
+  // 确保路径在 root 内：相等或以 root + 路径分隔符开头
+  if (full !== root && !full.startsWith(root + path.sep)) {
     throw new Error("path escapes workspace");
   }
   return full;

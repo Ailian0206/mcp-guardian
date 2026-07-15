@@ -141,11 +141,35 @@ export async function startProxy(options: {
     }
 
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
-    const decision = evaluate(policy, {
-      server: route.serverName,
-      tool: route.toolName,
-      args,
-    });
+    let decision: ReturnType<typeof evaluate>;
+    try {
+      decision = evaluate(policy, {
+        server: route.serverName,
+        tool: route.toolName,
+        args,
+      });
+    } catch (err) {
+      // 策略配置错误（如无效正则）应拒绝调用，符合 fail-closed 原则
+      audit.append({
+        id: callId,
+        server: route.serverName,
+        tool: route.toolName,
+        decision: {
+          action: "deny",
+          risk: 100,
+          matched_rule_id: null,
+          reasons: [`policy evaluation error: ${err instanceof Error ? err.message : String(err)}`],
+          redacted_args: args,
+          mode: policy.mode,
+        },
+        latencyMs: Date.now() - started,
+        resultStatus: "denied",
+      });
+      return policyError(
+        ErrorCodes.POLICY_DENIED,
+        `policy evaluation error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     if (decision.action === "deny") {
       audit.append({
@@ -169,13 +193,13 @@ export async function startProxy(options: {
         resultStatus: "approval_required_stub",
       });
       return policyError(
-        ErrorCodes.POLICY_DENIED,
+        ErrorCodes.POLICY_APPROVAL_REQUIRED,
         `require_approval pending (Week 2): ${decision.reasons.join("; ")}`,
       );
     }
 
-    const forwardArgs =
-      decision.action === "redact" ? decision.redacted_args : args;
+    // 策略引擎的 redacted_args 已包含所有脱敏（pre_redact、rule.redact），无论 action 是什么
+    const forwardArgs = decision.redacted_args;
 
     try {
       const result = (await route.client.callTool({
