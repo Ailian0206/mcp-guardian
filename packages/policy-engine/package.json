@@ -16,6 +16,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@mcp-guardian/shared": "workspace:*"
+    "@mcp-guardian/shared": "workspace:*",
+    "yaml": "^2.8.2"
   }
 }

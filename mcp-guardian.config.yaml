@@ -1,0 +1,6 @@
+policyFile: ./policies/default.fail-closed.yaml
+downstreams:
+  - name: demo-fs
+    command: node
+    args:
+      - ./packages/demo-servers/dist/fs.js

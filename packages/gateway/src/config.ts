@@ -1,0 +1,35 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { z } from "zod";
+import { parse as parseYaml } from "yaml";
+
+export const DownstreamConfigSchema = z.object({
+  name: z.string().min(1),
+  command: z.string().min(1),
+  args: z.array(z.string()).default([]),
+  cwd: z.string().optional(),
+  env: z.record(z.string(), z.string()).optional(),
+});
+
+export const GuardianConfigSchema = z.object({
+  mode: z.enum(["fail_closed", "permissive"]).optional(),
+  policyFile: z.string().min(1),
+  downstreams: z.array(DownstreamConfigSchema).min(1),
+  auditDb: z.string().optional(),
+});
+
+export type GuardianConfig = z.infer<typeof GuardianConfigSchema>;
+export type DownstreamConfig = z.infer<typeof DownstreamConfigSchema>;
+
+export function loadGuardianConfig(filePath: string): GuardianConfig {
+  const abs = path.resolve(filePath);
+  const raw = parseYaml(readFileSync(abs, "utf8"));
+  return GuardianConfigSchema.parse(raw);
+}
+
+export function resolveFromConfigDir(
+  configPath: string,
+  maybeRelative: string,
+): string {
+  return path.resolve(path.dirname(path.resolve(configPath)), maybeRelative);
+}
