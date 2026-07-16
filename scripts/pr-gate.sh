@@ -116,7 +116,7 @@ merge_pr() {
 SKIP_REVIEW="${SKIP_PR_REVIEW:-}"
 if [[ "$SKIP_REVIEW" != "1" ]]; then
   # 已有当前 head 的 marker 则跳过重复触发
-  HEAD_OID="$(gh pr view "$PR" --json headRefOid --jq -r '.headRefOid')"
+  HEAD_OID="$(gh pr view "$PR" --json headRefOid -q '.headRefOid')"
   if [[ "$(marker_for_head)" != "true" ]]; then
     run_pr_review
   else
