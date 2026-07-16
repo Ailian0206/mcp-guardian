@@ -1,7 +1,7 @@
 # Case Study：MCP Guardian（初稿）
 
-> 日期：2026-07-15  
-> 状态：MVP 本地可演示；Week 5 演示素材见 `docs/assets/`
+> 日期：2026-07-16  
+> 状态：MVP 本地可演示；演示视频见 [`docs/assets/demo-walkthrough.webm`](./assets/demo-walkthrough.webm)
 
 ## 问题
 
