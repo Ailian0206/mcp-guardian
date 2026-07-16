@@ -70,8 +70,11 @@ marker_for_head() {
 
 has_label() {
   local name="$1"
-  gh pr view "$PR" --json labels \
-    -q "[.labels[].name] | index(\"$name\") != null"
+  # gh -q 成功时 exit 0，true/false 在 stdout；必须比较字符串
+  [[ "$(
+    gh pr view "$PR" --json labels \
+      -q "[.labels[].name] | index(\"$name\") != null"
+  )" == "true" ]]
 }
 
 wait_for_review() {
