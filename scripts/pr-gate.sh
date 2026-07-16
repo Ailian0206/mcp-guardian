@@ -8,7 +8,7 @@ cd "$ROOT"
 
 PR="${1:-}"
 if [[ -z "$PR" ]]; then
-  PR="$(gh pr list --state open --json number --jq '.[0].number' 2>/dev/null || true)"
+  PR="$(gh pr list --state open --json number -q '.[0].number' 2>/dev/null || true)"
 fi
 if [[ -z "$PR" || "$PR" == "null" ]]; then
   echo "用法: $0 <PR编号>  （或存在唯一开放 PR 时省略）" >&2
@@ -27,12 +27,12 @@ PROTOCOL_PATHS=(
 
 read -r BASE_OID HEAD_OID HEAD_BRANCH < <(
   gh pr view "$PR" --json baseRefOid,headRefOid,headRefName \
-    --jq '[.baseRefOid,.headRefOid,.headRefName] | @tsv'
+    -q '[.baseRefOid,.headRefOid,.headRefName] | @tsv'
 )
 
 needs_trusted_base() {
   local files
-  files="$(gh pr view "$PR" --json files --jq '.files[].path')"
+  files="$(gh pr view "$PR" --json files -q '.files[].path')"
   for p in "${PROTOCOL_PATHS[@]}"; do
     if echo "$files" | grep -qF "$p"; then
       return 0
@@ -65,19 +65,19 @@ run_pr_review() {
 
 marker_for_head() {
   gh pr view "$PR" --json comments \
-    --jq "[.comments[].body | capture(\"<!-- CLAUDE_REVIEWED_SHA: (?<sha>[0-9a-f]+) -->\") | .sha] | index(\"$HEAD_OID\") != null"
+    -q "[.comments[].body | capture(\"<!-- CLAUDE_REVIEWED_SHA: (?<sha>[0-9a-f]+) -->\") | .sha] | index(\"$HEAD_OID\") != null"
 }
 
 has_label() {
   local name="$1"
   gh pr view "$PR" --json labels \
-    --jq "[.labels[].name] | index(\"$name\") != null"
+    -q "[.labels[].name] | index(\"$name\") != null"
 }
 
 wait_for_review() {
   local i max="${PR_REVIEW_WAIT_MAX:-90}"
   for ((i = 1; i <= max; i++)); do
-    HEAD_OID="$(gh pr view "$PR" --json headRefOid --jq -r '.headRefOid')"
+    HEAD_OID="$(gh pr view "$PR" --json headRefOid -q '.headRefOid')"
     if has_label "claude-changes-requested"; then
       echo "存在 claude-changes-requested，请在分支 $HEAD_BRANCH 修复后 push，再重新运行本脚本" >&2
       exit 2
@@ -106,7 +106,7 @@ ensure_gates() {
 }
 
 merge_pr() {
-  if [[ "$(gh pr view "$PR" --json isDraft --jq -r '.isDraft')" == "true" ]]; then
+  if [[ "$(gh pr view "$PR" --json isDraft -q '.isDraft')" == "true" ]]; then
     gh pr ready "$PR"
   fi
   gh pr merge "$PR" --merge --delete-branch
