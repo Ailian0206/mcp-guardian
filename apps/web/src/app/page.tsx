@@ -46,6 +46,7 @@ export default function HomePage() {
           进入 Dashboard
         </a>
       </div>
+
       <section style={{ marginTop: 48 }}>
         <h2 style={{ fontSize: 20 }}>与 Trace 平台的差异</h2>
         <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12 }}>
@@ -69,6 +70,27 @@ export default function HomePage() {
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section style={{ marginTop: 48 }}>
+        <h2 style={{ fontSize: 20 }}>本地快速开始</h2>
+        <pre
+          style={{
+            background: "#0f1b2a",
+            color: "#e8eef7",
+            padding: 16,
+            borderRadius: 12,
+            overflow: "auto",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >{`pnpm install && pnpm build
+pnpm guardian eval --policy policies/default.fail-closed.yaml \\
+  --server demo-fs --tool read_file --args '{"path":"/workspace/a.txt"}'
+pnpm dev:web   # http://127.0.0.1:3040`}</pre>
+        <p style={{ color: "#4d647f", marginTop: 12 }}>
+          Cursor MCP 配置示例见 README；默认 fail-closed，危险 shell 需人工批准。
+        </p>
       </section>
     </AppShell>
   );

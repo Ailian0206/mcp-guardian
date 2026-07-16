@@ -12,3 +12,4 @@ coverage/
 .mcp-guardian/
 playwright-report/
 test-results/
+.worktrees/

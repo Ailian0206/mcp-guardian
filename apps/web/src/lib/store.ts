@@ -106,44 +106,6 @@ export function writeStore(store: CloudStore): void {
   fs.writeFileSync(storePath(), JSON.stringify(store, null, 2));
 }
 
-export function seedDemoFixtures(): CloudStore {
-  const store = readStore();
-  if (store.audits.some((a) => a.id === "demo-audit-1")) return store;
-  store.audits.unshift(
-    {
-      id: "demo-audit-1",
-      ts: new Date().toISOString(),
-      server: "demo-fs",
-      tool: "write_file",
-      action: "deny",
-      matched_rule_id: "deny-system-write",
-      risk: 95,
-      result_status: "denied",
-      args_redacted: { path: "/etc/passwd", content: "***" },
-      reasons: ["拒绝写入系统目录"],
-      owner: "public",
-    },
-    {
-      id: "demo-audit-2",
-      ts: new Date().toISOString(),
-      server: "demo-http",
-      tool: "fetch",
-      action: "redact",
-      matched_rule_id: "redact-http-secrets",
-      risk: 60,
-      result_status: "ok",
-      args_redacted: {
-        url: "https://api.example.com?api_key=***REDACTED***",
-        headers: { authorization: "***REDACTED***" },
-      },
-      reasons: ["matched rule redact-http-secrets"],
-      owner: "public",
-    },
-  );
-  writeStore(store);
-  return store;
-}
-
 export function validatePolicyYaml(text: string): { ok: true } | { ok: false; error: string } {
   try {
     loadPolicyFromYaml(text);
@@ -154,4 +116,140 @@ export function validatePolicyYaml(text: string): { ok: true } | { ok: false; er
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+export type ActionStats = {
+  allow: number;
+  deny: number;
+  redact: number;
+  require_approval: number;
+  total: number;
+};
+
+export function computeActionStats(audits: CloudAudit[]): ActionStats {
+  const stats: ActionStats = {
+    allow: 0,
+    deny: 0,
+    redact: 0,
+    require_approval: 0,
+    total: audits.length,
+  };
+  for (const a of audits) {
+    if (a.action === "allow") stats.allow += 1;
+    else if (a.action === "deny") stats.deny += 1;
+    else if (a.action === "redact") stats.redact += 1;
+    else if (a.action === "require_approval") stats.require_approval += 1;
+  }
+  return stats;
+}
+
+export function seedDemoFixtures(): CloudStore {
+  const store = readStore();
+  let dirty = false;
+  // 仅在缺失 seed 时写入，避免 /demo 请求用旧快照覆盖 sync 写入
+  if (!store.audits.some((a) => a.id === "demo-audit-1")) {
+    store.audits.unshift(
+      {
+        id: "demo-audit-1",
+        ts: new Date().toISOString(),
+        server: "demo-fs",
+        tool: "write_file",
+        action: "deny",
+        matched_rule_id: "deny-system-write",
+        risk: 95,
+        result_status: "denied",
+        args_redacted: { path: "/etc/passwd", content: "***" },
+        reasons: ["拒绝写入系统目录"],
+        owner: "public",
+      },
+      {
+        id: "demo-audit-2",
+        ts: new Date().toISOString(),
+        server: "demo-http",
+        tool: "fetch",
+        action: "redact",
+        matched_rule_id: "redact-http-secrets",
+        risk: 60,
+        result_status: "ok",
+        args_redacted: {
+          url: "https://api.example.com?api_key=***REDACTED***",
+          headers: { authorization: "***REDACTED***" },
+        },
+        reasons: ["matched rule redact-http-secrets"],
+        owner: "public",
+      },
+    );
+    dirty = true;
+  }
+  if (ensurePublicDemo(store)) dirty = true;
+  if (dirty) writeStore(store);
+  return store;
+}
+
+/** @returns 是否新增了条目（供调用方决定是否落盘） */
+function ensurePublicDemo(store: CloudStore): boolean {
+  const extras: CloudAudit[] = [
+    {
+      id: "demo-audit-3",
+      ts: new Date().toISOString(),
+      server: "demo-shell",
+      tool: "run",
+      action: "require_approval",
+      matched_rule_id: "approve-dangerous-shell",
+      risk: 99,
+      result_status: "approved_then_allowed",
+      args_redacted: { command: "rm -rf /tmp/x" },
+      reasons: ["高危 shell 需要人工批准"],
+      owner: "public",
+    },
+    {
+      id: "demo-audit-4",
+      ts: new Date().toISOString(),
+      server: "demo-fs",
+      tool: "read_file",
+      action: "allow",
+      matched_rule_id: "allow-workspace-read",
+      risk: 10,
+      result_status: "ok",
+      args_redacted: { path: "/workspace/readme.md" },
+      reasons: ["允许工作区读取"],
+      owner: "public",
+    },
+    {
+      id: "demo-audit-5",
+      ts: new Date().toISOString(),
+      server: "demo-fs",
+      tool: "read_file",
+      action: "deny",
+      matched_rule_id: null,
+      risk: 100,
+      result_status: "denied",
+      args_redacted: { path: "/tmp/bomb-1" },
+      reasons: ["no rule matched; fail_closed denies"],
+      owner: "public",
+    },
+    {
+      id: "demo-audit-6",
+      ts: new Date().toISOString(),
+      server: "demo-http",
+      tool: "fetch",
+      action: "redact",
+      matched_rule_id: "redact-http-secrets",
+      risk: 60,
+      result_status: "ok",
+      args_redacted: {
+        url: "http://169.254.169.254/latest/meta-data/?api_key=***REDACTED***",
+      },
+      reasons: ["matched rule redact-http-secrets"],
+      owner: "public",
+    },
+  ];
+  let added = false;
+  for (const item of extras) {
+    if (!store.audits.some((a) => a.id === item.id)) {
+      store.audits.push(item);
+      added = true;
+    }
+  }
+  return added;
 }

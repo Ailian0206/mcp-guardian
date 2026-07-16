@@ -3,16 +3,16 @@
 仓库：`Ailian0206/mcp-guardian`  
 可见性：Public  
 默认分支：`main`  
-工具：`git` + `gh` + Cursor Bugbot
+工具：`git` + `gh` + Claude Code `/pr-review`（替代 Cursor Bugbot）
 
 ## 1. 核心原则（成本优先）
 
-1. **严控 PR 数量**：每次 PR 都会触发 Cursor Bugbot（约 $1–1.5/次），成本高。  
-2. **默认目标：同时最多 1 个开放 PR**；一个合完再开下一个。  
-3. **按「开发计划整周」或更大交付切片开 PR**，不要按天/按小任务开。  
-4. **纯文档 / 状态面板 / playbook 单独不配开 PR**，并入下一周功能 PR。  
-5. **开 PR 后 Autofix 优先**：主 Agent 不得与 Autofix 抢修同一 finding。  
-6. **主进程不干等**：派子代理监听；继续本地开发下一切片（可 commit/push 分支，但**先不开第二个 PR**）。
+1. **严控 PR 数量**：同时最多 1 个开放 PR；整周验收后再开。  
+2. **按「开发计划整周」或更大交付切片开 PR**，不要按天/按小任务开。  
+3. **纯文档 / 状态面板 / playbook 单独不配开 PR**，并入下一周功能 PR。  
+4. **审核由独立 Claude `/pr-review` 完成**；开发 agent 不得自审自批。  
+5. **主进程不干等**：审核进行时可继续本地下一切片，但**先不开第二个 PR**。  
+6. Cursor Bugbot 额度耗尽期间**不再**作为合并门禁。
 
 ### 1.1 数量红线（强制）
 
@@ -23,8 +23,6 @@
 | 禁止单独开 PR | 纯 `docs/`、`PROJECT_STATUS`、AGENT/playbook、拼写/格式 |
 | 仓库起步例外 | 仅允许 **1 次** bootstrap PR（建仓+CI）；之后不得再拆「脚手架 PR / 文档 PR / 小功能 PR」 |
 
-历史教训：本仓库早期连续开到 PR #5，属于违规节奏；后续 Agent 必须按本表执行。
-
 ## 2. 日常闭环
 
 ```text
@@ -33,10 +31,11 @@ main
   → 分支内多日小步 commit（可 push 远程备份，仍不开 PR）
   → 整周验收通过（lint/typecheck/test/场景）
   → 确认当前没有其它开放 PR
-  → 开唯一 Draft PR
-  → 派 Bugbot 监听子代理
-  → 主进程继续下一周：只在本地/远程分支开发，等当前 PR 合并后再开下一个 PR
-  → 子代理回报 → 审 Autofix → merge；有问题同分支补修（不新开 PR）
+  → 开唯一 PR（可 Draft）
+  → 触发 Claude /pr-review（协议变更用 --trusted-base）
+  → 有 claude-changes-requested → 同分支修复 → push → 复审
+  → 标签与 marker 通过 + CI 绿 → gh pr merge --merge --delete-branch
+  → （可选）主进程在审核期间本地开发下一周，等合并后再开 PR
 ```
 
 ### 2.1 何时才允许开 PR
@@ -49,12 +48,6 @@ main
 - `PROJECT_STATUS.md` 已写清本周验收与不做项  
 - 相关文档改动已一并打进同一分支（不另开 docs PR）
 
-禁止：
-
-- 每个小 fix / 文档微调单独开 PR  
-- 模块未验收就开 PR「占坑」  
-- 同一周为修 Bugbot 再开第二个 PR  
-- 在已有开放 PR 时再开新 PR（除非用户明确要求并行）
 ### 2.2 分支命名
 
 | 类型 | 格式 |
@@ -66,73 +59,76 @@ main
 
 `main` 只接受已通过门禁的模块 PR，禁止直接推送业务改动。
 
-## 3. Cursor Bugbot 与 Autofix 协作
+## 3. Claude `/pr-review` 协作
 
-### 3.1 预期行为
+### 3.1 触发命令
 
-- PR 创建后 Bugbot 跑检查；有问题会留下 findings。  
-- 若仓库启用了 Autofix（推荐 **Commit to Existing Branch**，或 Create New Branch）：Cloud Agent 会自动修复并推到远程。  
-- Autofix 消耗 Cloud Agent credits，因此更要控制 PR 频率。
+普通 PR（未改审核协议）：
 
-### 3.2 主 Agent 禁令（开 PR 之后）
+```bash
+claude --permission-mode auto --model sonnet -p "/pr-review"
+```
 
-在子代理确认「Bugbot/Autofix 已结束或无需 Autofix」之前：
+触及审核协议路径（`.claude/skills/pr-review/**`、`.cursor/rules/pr-review-gate.mdc`、`AGENT.md` 门禁、本 playbook 审核协议、`docs/bugbot-autofix-workflow.md` 等）时：
 
-1. **不要**自行按 Bugbot 评论改同一批 finding 并 push（避免与 Autofix 冲突 / 重复计费）。  
-2. **不要**为同一 finding 再开 PR。  
-3. **不要**阻塞式轮询干等；应派子代理监听，自己做下一模块。
+```bash
+git worktree add --detach ".worktrees/pr-review-base-<PR>-<base短SHA>" "<baseRefOid>"
+cd ".worktrees/pr-review-base-<PR>-<base短SHA>"
+claude --permission-mode auto --model sonnet -p "/pr-review --trusted-base <PR>"
+# 退出后确认 worktree clean，再 remove（禁止 --force 清脏树）
+```
 
-### 3.3 子代理：Bugbot 监听（必派）
+### 3.2 标签与 marker
 
-开完模块 PR 后，**立即**派一个后台子代理，职责仅限：
-
-1. 用 `gh pr checks` / `gh pr view` / PR 评论跟踪 `Cursor Bugbot` 状态。  
-2. 观察是否出现 Autofix commit（同一分支或 Autofix 新分支）。  
-3. 等 Bugbot check 结束，且 Autofix 不再有进行中的修复（或明确无 findings）。  
-4. 向主进程回报：
-   - Bugbot 最终状态（pass / findings 摘要）  
-   - Autofix 是否提交、commit SHA、改了哪些文件  
-   - 建议：`approve-merge` / `needs-human-review` / `needs-manual-fix`
-
-子代理**禁止**：
-
-- 自己改业务代码去「抢修」Autofix 正在修的问题  
-- 合并 PR  
-- 开启新的功能开发
-
-### 3.4 主进程：并行下一模块
-
-子代理监听期间，主进程应：
-
-1. 从最新 `main`（或确认不依赖该 PR 的基线）拉 **下一个模块分支**。  
-2. 继续实现与测试，本地 commit 即可。  
-3. **不要** push 到正在等 Bugbot 的 PR 分支（除非子代理已回报且进入审核阶段）。  
-4. 下一模块也要等自身验收完成后再开 PR（继续少开 PR）。
-
-### 3.5 子代理回报后的审核与合并
-
-| 情况 | 动作 |
+| 信号 | 含义 |
 | --- | --- |
-| 无 findings，CI 绿 | Ready → `gh pr merge <n> --merge --delete-branch` |
-| Autofix 已推修复，审阅通过 | 同一 PR 直接 merge（不要为 Autofix 再开 PR） |
-| Autofix 有误 / 不足 | 在 **原 PR 分支** 上修改、本地验证、`git push`（仍不新开 PR） |
-| Autofix 开在独立分支 | 审查后合入原 PR 分支或按 Cursor 提示合并，最终只保留一条合入 `main` 的模块 PR |
+| `claude-reviewed` | 当前审核已完成 |
+| `claude-changes-requested` | 存在未解决 CRITICAL/HIGH |
+| `<!-- CLAUDE_REVIEWED_SHA: <sha> -->` | summary 评论中的 head SHA 幂等标记 |
 
-合并方式固定：**Create a merge commit**（`--merge`），不用 squash/rebase。
+开发 agent **不得**手工增删这两个标签，也不得冒充审核评论。
+
+### 3.3 修复循环
+
+1. 读取 PR 评论中的 CRITICAL/HIGH，用测试或复现命令验证。  
+2. 认可则同分支最小修复；不认可则在回复/状态中写明拒绝理由（不迎合）。  
+3. `pnpm lint && pnpm typecheck && pnpm test`（及必要场景）通过后 push。  
+4. 重新触发对应模式的 `/pr-review`。  
+5. 直到 `claude-reviewed` 且无 `claude-changes-requested`，且 marker == 当前 head。
+
+MEDIUM/LOW 由开发 agent 技术判断，不要求人工。
+
+### 3.4 自动合并（无需人工批准）
+
+同时满足：
+
+1. 本地门禁绿  
+2. GitHub CI 绿  
+3. `claude-reviewed` 且 marker 匹配当前 `headRefOid`  
+4. 无 `claude-changes-requested`  
+5. 无未解决的有效 CRITICAL/HIGH  
+
+```bash
+gh pr ready <n>
+gh pr merge <n> --merge --delete-branch
+```
+
+禁止 squash / rebase / force push。
 
 ## 4. PR 模板要点
 
 - 变更内容 / 原因 / 影响范围 / 验证命令 / 风险点  
-- 写明：本模块验收已完成；开 PR 后由 Bugbot/Autofix 优先处理 findings  
+- 写明：本模块验收已完成；开 PR 后由 Claude `/pr-review` 审核  
 - 合并方式固定为 merge commit  
 
 ## 5. Agent 边界
 
-- 自主完成当前有限周期内的模块实现 →（验收后）唯一模块 PR → 子代理听 Bugbot → 主进程并行下一模块 → 审核后合并。  
-- 不静默开启下一**开发周期**（周期级仍需用户授权）；周期内下一**模块**可并行。  
-- 密钥、npm publish、高风险不可逆操作先确认。
+- 自主完成周期内模块 → 唯一 PR → Claude 审核 → 自动修复/复审 → 自动合并。  
+- 不静默开启下一**开发周期**（周期级仍需用户授权）；周期内下一**模块**可并行开发但不开第二 PR。  
+- 密钥、npm publish、生产部署、高风险不可逆操作先确认。
 
 ## 6. 配置入口
 
-- Bugbot Dashboard：<https://www.cursor.com/dashboard/bugbot>  
-- 本仓库建议 Autofix：Commit to Existing Branch（或 Create New Branch，由子代理跟踪修复分支）
+- Claude skill：`.claude/skills/pr-review/SKILL.md`（全局备份：`~/.claude/skills/pr-review/`）  
+- Cursor 门禁：`.cursor/rules/pr-review-gate.mdc`  
+- 旧 Bugbot Dashboard（仅参考，不再作为门禁）：<https://www.cursor.com/dashboard/bugbot>
