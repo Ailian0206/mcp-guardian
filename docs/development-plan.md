@@ -152,10 +152,10 @@ A1–A8 全通；陌生人可理解产品。
 
 ## 7. Week 5：包装周（不加功能）
 
-- [ ] 录制 30–60 秒演示 GIF/视频  
-- [ ] Evidence Graph Work 页增加 MCP Guardian 条目（若 EG 已上线）  
-- [ ] 英文 README 摘要（可选）  
-- [ ] 冻结 P0；新建 `docs/p1-backlog.md` 收纳后续想法  
+- [x] 录制 30–60 秒演示 GIF/视频（`scripts/record-demo.sh` → `docs/assets/`）  
+- [x] Evidence Graph Work 页增加 MCP Guardian 条目（独立仓分支 `chore/mcp-guardian-portfolio-entry`）  
+- [x] 英文 README 摘要（`README.en.md`）  
+- [x] 冻结 P0；`docs/p1-backlog.md` 已收纳后续想法  
 
 ## 8. 每日工作节奏（执行期）
 
