@@ -95,11 +95,9 @@ wait_for_review() {
 ensure_gates() {
   echo "运行本地门禁..."
   pnpm lint && pnpm typecheck && pnpm test
-  echo "检查 GitHub CI..."
-  local checks
-  checks="$(gh pr checks "$PR" 2>&1 || true)"
-  echo "$checks"
-  if ! echo "$checks" | grep -q pass; then
+  # 审核刚结束时 CI 常仍 pending；必须 watch 等到结论，不能一次性 grep pass
+  echo "等待 GitHub CI..."
+  if ! gh pr checks "$PR" --watch --fail-fast; then
     echo "CI 未通过" >&2
     exit 4
   fi
