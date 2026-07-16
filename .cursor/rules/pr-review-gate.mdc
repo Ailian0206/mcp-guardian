@@ -22,6 +22,7 @@ Cursor Bugbot 额度不可用期间，本仓库使用独立 Claude Code `pr-revi
    - `.cursor/rules/pr-review-gate.mdc`
    - `AGENT.md` 的审核/合并门禁
    - `docs/github-automation-playbook.md` 的审核协议
+   - `docs/bugbot-autofix-workflow.md`
 
    必须在准确 `baseRefOid` 的临时 detached worktree 运行：
 

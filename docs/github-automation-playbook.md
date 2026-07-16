@@ -51,7 +51,7 @@ main
 ### 2.2 分支命名
 
 | 类型 | 格式 |
-| --- | ---: |
+| --- | --- |
 | 功能 | `feat/<topic>` |
 | 修复 | `fix/<topic>` |
 | 文档 | `docs/<topic>` |
@@ -69,7 +69,7 @@ main
 claude --permission-mode auto --model sonnet -p "/pr-review"
 ```
 
-触及审核协议路径（`.claude/skills/pr-review/**`、`.cursor/rules/pr-review-gate.mdc`、`AGENT.md` 门禁、本 playbook 审核协议等）时：
+触及审核协议路径（`.claude/skills/pr-review/**`、`.cursor/rules/pr-review-gate.mdc`、`AGENT.md` 门禁、本 playbook 审核协议、`docs/bugbot-autofix-workflow.md` 等）时：
 
 ```bash
 git worktree add --detach ".worktrees/pr-review-base-<PR>-<base短SHA>" "<baseRefOid>"
