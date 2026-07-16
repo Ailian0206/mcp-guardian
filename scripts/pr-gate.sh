@@ -64,15 +64,14 @@ run_pr_review() {
 }
 
 marker_for_head() {
-  gh pr view "$PR" --comments --json comments \
-    --jq --arg sha "$HEAD_OID" '
-      [.comments[].body
-        | capture("<!-- CLAUDE_REVIEWED_SHA: (?<sha>[0-9a-f]+) -->")
-        | .sha] | index($sha) != null'
+  gh pr view "$PR" --json comments \
+    --jq "[.comments[].body | capture(\"<!-- CLAUDE_REVIEWED_SHA: (?<sha>[0-9a-f]+) -->\") | .sha] | index(\"$HEAD_OID\") != null"
 }
 
 has_label() {
-  gh pr view "$PR" --json labels --jq --arg n "$1" '[.labels[].name] | index($n) != null'
+  local name="$1"
+  gh pr view "$PR" --json labels \
+    --jq "[.labels[].name] | index(\"$name\") != null"
 }
 
 wait_for_review() {
@@ -97,8 +96,12 @@ ensure_gates() {
   echo "运行本地门禁..."
   pnpm lint && pnpm typecheck && pnpm test
   echo "检查 GitHub CI..."
-  if ! gh pr checks "$PR" | grep -q pass; then
-    gh pr checks "$PR" --watch
+  local checks
+  checks="$(gh pr checks "$PR" 2>&1 || true)"
+  echo "$checks"
+  if ! echo "$checks" | grep -q pass; then
+    echo "CI 未通过" >&2
+    exit 4
   fi
 }
 
