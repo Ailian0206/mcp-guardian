@@ -50,6 +50,10 @@ function storePath(): string {
 
 const defaultPolicy = `version: 1
 mode: fail_closed
+pre_redact: false
+defaults:
+  approval_ttl_seconds: 300
+  risk_threshold_for_approval: 70
 rules:
   - id: allow-workspace-read
     when:
@@ -59,6 +63,7 @@ rules:
         path: { matches: "^/workspace/" }
     action: allow
     risk: 10
+    reason: "允许工作区读取"
   - id: deny-system-write
     when:
       server: demo-fs
@@ -67,20 +72,28 @@ rules:
         path: { matches: "^/(etc|var|usr)/" }
     action: deny
     risk: 95
+    reason: "拒绝写入系统目录"
   - id: redact-http-secrets
     when:
       server: demo-http
       tool: fetch
     action: redact
     risk: 60
+    redact:
+      - path: headers.authorization
+        replace: "***REDACTED***"
+      - path: url
+        pattern: "(api_key|token|secret)=([^&]+)"
+        replace: "$1=***REDACTED***"
   - id: approve-dangerous-shell
     when:
       server: demo-shell
       tool: run
       args:
-        command: { matches: "(rm\\\\s+-rf|sudo)" }
+        command: { matches: "(rm\\\\s+-rf|sudo|mkfs|dd\\\\s+if=)" }
     action: require_approval
     risk: 99
+    reason: "高危 shell 需要人工批准"
 `;
 
 function emptyStore(): CloudStore {
@@ -252,4 +265,101 @@ function ensurePublicDemo(store: CloudStore): boolean {
     }
   }
   return added;
+}
+
+/**
+ * 登录用户首次进入 Dashboard 时注入可验收样例：
+ * - 1 条 pending 高危 shell（对应 A5）
+ * - 若干归属该用户的审计（Dashboard 统计不为空）
+ */
+export function ensureUserFixtures(owner: string): CloudStore {
+  const store = readStore();
+  let dirty = false;
+  const pendingId = `user-${owner}-approval-shell`;
+  if (!store.approvals.some((a) => a.id === pendingId)) {
+    store.approvals.unshift({
+      id: pendingId,
+      status: "pending",
+      server: "demo-shell",
+      tool: "run",
+      args_redacted: { command: "rm -rf /tmp/mcp-guardian-demo" },
+      reasons: ["高危 shell 需要人工批准（本地验收样例 A5）"],
+      created_at: new Date().toISOString(),
+      decided_at: null,
+      owner,
+    });
+    dirty = true;
+  }
+
+  const userAudits: CloudAudit[] = [
+    {
+      id: `user-${owner}-audit-allow`,
+      ts: new Date().toISOString(),
+      server: "demo-fs",
+      tool: "read_file",
+      action: "allow",
+      matched_rule_id: "allow-workspace-read",
+      risk: 10,
+      result_status: "ok",
+      args_redacted: { path: "/workspace/notes.md" },
+      reasons: ["允许工作区读取"],
+      owner,
+    },
+    {
+      id: `user-${owner}-audit-deny`,
+      ts: new Date().toISOString(),
+      server: "demo-fs",
+      tool: "write_file",
+      action: "deny",
+      matched_rule_id: "deny-system-write",
+      risk: 95,
+      result_status: "denied",
+      args_redacted: { path: "/etc/hosts", content: "***" },
+      reasons: ["拒绝写入系统目录"],
+      owner,
+    },
+    {
+      id: `user-${owner}-audit-redact`,
+      ts: new Date().toISOString(),
+      server: "demo-http",
+      tool: "fetch",
+      action: "redact",
+      matched_rule_id: "redact-http-secrets",
+      risk: 60,
+      result_status: "ok",
+      args_redacted: {
+        url: "https://api.example.com?api_key=***REDACTED***",
+        headers: { authorization: "***REDACTED***" },
+      },
+      reasons: ["matched rule redact-http-secrets"],
+      owner,
+    },
+    {
+      id: `user-${owner}-audit-approval`,
+      ts: new Date().toISOString(),
+      server: "demo-shell",
+      tool: "run",
+      action: "require_approval",
+      matched_rule_id: "approve-dangerous-shell",
+      risk: 99,
+      result_status: "pending_approval",
+      args_redacted: { command: "rm -rf /tmp/mcp-guardian-demo" },
+      reasons: ["高危 shell 需要人工批准"],
+      owner,
+    },
+  ];
+  for (const item of userAudits) {
+    if (!store.audits.some((a) => a.id === item.id)) {
+      store.audits.unshift(item);
+      dirty = true;
+    }
+  }
+
+  if (!store.policies.default || store.policies.default.length < 80) {
+    store.policies.default = defaultPolicy;
+    dirty = true;
+  }
+
+  if (dirty) writeStore(store);
+  return store;
 }

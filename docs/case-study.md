@@ -30,13 +30,15 @@ MCP Guardian 是 **调用前** 的策略网关：
 ## 本地可复现证据
 
 ```bash
-pnpm install && pnpm build
+git clone https://github.com/Ailian0206/mcp-guardian.git
+cd mcp-guardian
+bash scripts/install.sh          # 一键写入 Cursor / Codex MCP
 bash scenarios/a1-a8.sh
-pnpm test:e2e   # 落地页 / Demo / 登录门禁
-pnpm dev:web    # http://127.0.0.1:3040
+pnpm test:e2e                    # 可选 Web smoke
+pnpm guardian approvals list     # 本机审批（主路径，非 Web）
 ```
 
-红队六场景（越权读、危险写、密钥外泄、高危 shell、可疑 URL、批量轰炸）见 `scenarios/redteam-six.sh`。
+红队六场景见 `scenarios/redteam-six.sh`。作品集条目：Evidence Graph → Work → MCP Guardian。
 
 ## 作品集定位
 

@@ -31,10 +31,10 @@ export default function HomePage() {
             textDecoration: "none",
           }}
         >
-          查看公开 Demo
+          5 分钟验收 Demo
         </a>
         <a
-          href="/app"
+          href="/login"
           style={{
             border: "1px solid #16324f",
             color: "#16324f",
@@ -43,9 +43,32 @@ export default function HomePage() {
             textDecoration: "none",
           }}
         >
-          进入 Dashboard
+          登录 Dashboard（A5 审批）
         </a>
       </div>
+
+      <section
+        style={{
+          marginTop: 36,
+          padding: 16,
+          background: "#eef4fb",
+          borderRadius: 12,
+          maxWidth: 720,
+          lineHeight: 1.65,
+          color: "#33485f",
+        }}
+      >
+        <strong>怎么验收（Web）</strong>
+        <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+          <li>
+            打开 <a href="/demo">/demo</a>，点「A1～A4 / fail-closed」按钮，看是否出现「✓ 验收通过」。
+          </li>
+          <li>浏览预置回放卡片，确认四种动作都有说明。</li>
+          <li>
+            登录 Dashboard → Approvals 批准/拒绝 <code>rm -rf</code> 样例（A5）。
+          </li>
+        </ol>
+      </section>
 
       <section style={{ marginTop: 48 }}>
         <h2 style={{ fontSize: 20 }}>与 Trace 平台的差异</h2>
@@ -70,6 +93,27 @@ export default function HomePage() {
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section style={{ marginTop: 48 }}>
+        <h2 style={{ fontSize: 20 }}>一键接到 Cursor / Codex</h2>
+        <p style={{ color: "#4d647f", maxWidth: 640, lineHeight: 1.6 }}>
+          主产品是本地 Gateway（一个 MCP），不是网页。装好后多数拦截自动完成；高危操作用 CLI 审批。
+        </p>
+        <pre
+          style={{
+            background: "#0f1b2a",
+            color: "#e8eef7",
+            padding: 16,
+            borderRadius: 12,
+            overflow: "auto",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >{`git clone https://github.com/Ailian0206/mcp-guardian.git
+cd mcp-guardian
+bash scripts/install.sh
+# 重启 Cursor / Codex → MCP 列表出现 mcp-guardian`}</pre>
       </section>
 
       <section style={{ marginTop: 48 }}>

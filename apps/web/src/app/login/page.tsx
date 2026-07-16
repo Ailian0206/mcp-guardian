@@ -4,9 +4,9 @@ export default function LoginPage() {
   return (
     <AppShell nav={<a href="/">Home</a>}>
       <h1>登录 Dashboard</h1>
-      <p style={{ color: "#4d647f", maxWidth: 560 }}>
-        Week 3 使用本地开发者会话（不强制 GitHub/Supabase），避免阻塞与额外云费用。
-        生产可再切换到 Supabase GitHub OAuth。
+      <p style={{ color: "#4d647f", maxWidth: 560, lineHeight: 1.6 }}>
+        本地会话即可。登录后会注入验收样例：待审批的高危 shell（A5）+ 四种动作的审计统计。
+        显示名可随便填（例如 <code>local-dev</code>）。
       </p>
       <form action="/api/auth/login" method="post" style={{ marginTop: 24, display: "grid", gap: 12, maxWidth: 360 }}>
         <label>

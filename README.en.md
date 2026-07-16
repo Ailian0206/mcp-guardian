@@ -22,6 +22,17 @@ Intercepts MCP tool calls **before** execution—not a Langfuse/LangSmith-style 
 
 Default **fail-closed**: unmatched rules → deny.
 
+## One-shot install (Cursor / Codex)
+
+```bash
+git clone https://github.com/Ailian0206/mcp-guardian.git
+cd mcp-guardian
+bash scripts/install.sh
+# Restart Cursor/Codex → MCP list shows mcp-guardian
+```
+
+Day-to-day: the **local gateway** is the product. Approvals via CLI (`pnpm guardian approvals decide`). Web is optional.
+
 ## Quick start
 
 ```bash
