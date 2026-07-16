@@ -1,22 +1,21 @@
 # MCP Guardian
 
-AI Agent 调用 MCP 工具前的权限、脱敏、审批与审计网关。
+装进 **Cursor / Codex** 的本地 MCP 策略中间层：在 Agent 调用工具前 allow / deny / redact；高危在 **同一次 Agent 对话** 里批准。
 
 仓库：<https://github.com/Ailian0206/mcp-guardian>  
-作品集：<https://github.com/Ailian0206/evidence-graph>（Work → MCP Guardian）  
-English：[`README.en.md`](README.en.md)
+作品集：Evidence Graph → Work → MCP Guardian  
+决策文档：[`docs/product-redesign-2026-07-16.md`](docs/product-redesign-2026-07-16.md)
 
-## 它是什么（先分清主次）
+## 主路径（请按这个理解）
 
-| 组件 | 是否日常必需 | 作用 |
-| --- | --- | --- |
-| **本地 Gateway（MCP）** | **是** | 装进 Cursor / Codex，在 `tools/call` 前拦截 |
-| CLI 审批 | 高危时需要 | `approvals list` / `decide`，本机完成 |
-| Web Dashboard | **可选** | 演示、回放、远程审批；不是主路径 |
+1. `bash scripts/install.sh` → 重启 IDE  
+2. Agent 正常用工具；多数策略自动生效  
+3. 高危 → 返回 `approval_required` → Agent 问你 → 你确认 → Agent 调 `guardian_decide`  
+4. **不需要**打开网页审批，也**不需要**另开终端跑 approvals  
 
-默认 **fail-closed**：未匹配规则一律 deny。
+Web 站点只做介绍 / FAQ / 可选策略试跑。
 
-## 一键安装（推荐）
+## 一键安装
 
 ```bash
 git clone https://github.com/Ailian0206/mcp-guardian.git
@@ -24,65 +23,34 @@ cd mcp-guardian
 bash scripts/install.sh
 ```
 
-脚本会：`pnpm install` → `pnpm build` → 写入：
+写入 Cursor `~/.cursor/mcp.json`、Codex `~/.codex/config.toml` 与 `~/.mcp-guardian/`。  
+仅一边：`bash scripts/install.sh --cursor` 或 `--codex`。
 
-- `~/.mcp-guardian/mcp-guardian.config.yaml`（绝对路径配置）
-- Cursor：`~/.cursor/mcp.json` 增加 `mcp-guardian`（原文件备份为 `.bak-mcp-guardian`）
-- Codex：`~/.codex/config.toml` 增加 `[mcp_servers.mcp-guardian]`
+## Agent 会话内审批
 
-只装一边：
+当策略为 `require_approval` 时，工具结果包含：
 
-```bash
-bash scripts/install.sh --cursor
-bash scripts/install.sh --codex
-```
+- `approval_id`
+- `agent_instructions`：先问用户，再调用 `guardian_decide`
 
-已构建过时可直接：
+同 MCP 还暴露：
 
-```bash
-pnpm guardian install          # Cursor + Codex
-pnpm guardian install --cursor
-pnpm guardian install --codex
-```
+- `guardian_pending` — 查看待批  
+- `guardian_decide` — `{ id, decision: "allow" | "deny" }`；allow 时才真正执行原工具  
 
-然后 **重启 Cursor / Codex**（或 Reload MCP），列表中应出现 `mcp-guardian`。
-
-### 装好后怎么用
-
-1. 让 Agent 调用该 MCP 下的工具（当前演示下游为 `demo-fs`）。  
-2. 允许路径 / 拒绝写系统目录等由策略自动处理，多数情况**不用开网页**。  
-3. 若出现待审批：
+## Web（说明书）
 
 ```bash
-pnpm guardian approvals list
-pnpm guardian approvals decide <id> --allow   # 或 --deny
+pnpm dev:web   # http://127.0.0.1:3040  → /  /faq  /demo
 ```
 
-4. Web 仅演示：`pnpm dev:web` → http://127.0.0.1:3040  
-
-## 开发与验收
+## 开发验收
 
 ```bash
 pnpm install && pnpm build
 pnpm lint && pnpm typecheck && pnpm test
 bash scenarios/a1-a8.sh
-pnpm test:e2e
 ```
-
-## 安全说明
-
-- 演示下游 `demo-fs` 不是你的真实磁盘工具；接生产 MCP 请改 `~/.mcp-guardian/mcp-guardian.config.yaml` 的 `downstreams`。  
-- 审计可能含参数摘要；勿提交真实密钥。  
-- `redact` 不能替代密钥轮换。
-
-## 文档
-
-| 文档 | 说明 |
-| --- | --- |
-| [产品总方案](docs/product-plan.md) | 决策源 |
-| [Case Study](docs/case-study.md) | 叙事 |
-| [P1 Backlog](docs/p1-backlog.md) | 冻结后想法 |
-| [GitHub 流程](docs/github-automation-playbook.md) | PR / 审核 |
 
 ## License
 

@@ -18,7 +18,7 @@ function usage(): never {
 
 Notes:
   install  一键写入 Cursor/Codex MCP 配置（先 pnpm build）
-  高危审批优先用 approvals decide，Web 可选
+  高危审批：在 Agent 对话里确认后由 Agent 调用 guardian_decide（非外置 CLI）
 `);
   process.exit(2);
 }

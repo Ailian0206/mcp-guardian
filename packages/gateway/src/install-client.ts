@@ -124,8 +124,8 @@ export function installClients(
   const cliPath = path.join(repoRoot, "packages/gateway/dist/cli.js");
   const messages: string[] = [
     `用户配置: ${configPath}`,
-    "日常用法：策略自动拦截；高危审批用：node .../cli.js approvals list / decide",
-    "Web Dashboard 可选，不是主路径。",
+    "主路径：Cursor/Codex 里用 Agent；高危时 Agent 会问你，再调 guardian_decide。",
+    "Web 仅介绍/FAQ，不是审批台。",
   ];
   const result: InstallResult = { configPath, cliPath, messages };
 

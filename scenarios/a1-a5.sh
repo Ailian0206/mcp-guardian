@@ -23,27 +23,31 @@ echo "$REDACT" | grep -q '"action": "redact"'
 echo "$REDACT" | grep -q '\*\*\*REDACTED\*\*\*'
 ! echo "$REDACT" | grep -q 'sk-live-secret'
 
-# A4 require_approval
+# A4 require_approval（策略层；运行时由 Agent 会话内 guardian_decide 完成 A5）
 APR="$("${CLI[@]}" eval --policy "$POLICY" --server demo-shell --tool run --args '{"command":"rm -rf /tmp/x"}')"
 echo "$APR" | grep -q '"action": "require_approval"'
 
-# A5 approval decide
-export MCP_GUARDIAN_HOME
-MCP_GUARDIAN_HOME="$(mktemp -d)"
+# A5：会话内审批契约 — pending payload 必须指导 Agent 调 guardian_decide
 node --input-type=module -e "
-import { ApprovalStore } from './packages/gateway/dist/approvals.js';
-const s = new ApprovalStore(process.env.MCP_GUARDIAN_HOME + '/state.db');
-s.create({
+import { pendingApprovalPayload } from './packages/gateway/dist/pending-cache.js';
+const text = pendingApprovalPayload({
   id: 'scenario-a5',
   server: 'demo-shell',
   tool: 'run',
-  argsRedacted: { command: 'rm -rf /tmp/x' },
-  reasons: ['test'],
-  ttlSeconds: 60,
-});
-s.close();
+  forwardArgs: { command: 'rm -rf /tmp/x' },
+  decision: {
+    action: 'require_approval',
+    risk: 99,
+    matched_rule_id: 'approve-dangerous-shell',
+    reasons: ['test'],
+    redacted_args: { command: 'rm -rf /tmp/x' },
+    mode: 'fail_closed',
+  },
+  createdAt: new Date().toISOString(),
+}, 300);
+if (!text.includes('guardian_decide') || !text.includes('approval_required')) {
+  process.exit(1);
+}
 "
-"${CLI[@]}" approvals decide scenario-a5 --allow | grep -q '"status": "approved"'
-rm -rf "$MCP_GUARDIAN_HOME"
 
 echo "A1-A5 OK"

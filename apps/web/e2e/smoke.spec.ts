@@ -5,7 +5,7 @@ test.describe("Week4 smoke", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "MCP Guardian" })).toBeVisible();
     await expect(page.getByText("与 Trace 平台的差异")).toBeVisible();
-    await expect(page.getByText("本地快速开始")).toBeVisible();
+    await expect(page.getByText("一键安装")).toBeVisible();
   });
 
   test("公开 Demo 可回放且含统计", async ({ page }) => {

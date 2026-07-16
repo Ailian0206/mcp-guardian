@@ -18,13 +18,20 @@ import {
   resolveFromConfigDir,
   type DownstreamConfig,
 } from "./config.js";
-import { registerDevice, SyncClient } from "./sync.js";
+import {
+  PendingCallCache,
+  pendingApprovalPayload,
+} from "./pending-cache.js";
 
 function policyError(code: string, message: string): CallToolResult {
   return {
     content: [{ type: "text", text: `code=${code} ${message}` }],
     isError: true,
   };
+}
+
+function textResult(text: string, isError = false): CallToolResult {
+  return { content: [{ type: "text", text }], isError };
 }
 
 function cleanEnv(
@@ -54,9 +61,12 @@ async function connectDownstream(ds: DownstreamConfig): Promise<Client> {
 
 type ToolRoute = { serverName: string; toolName: string; client: Client };
 
+const META_PENDING = "guardian_pending";
+const META_DECIDE = "guardian_decide";
+
 /**
  * 上游 stdio Server ← Guardian 策略 → 下游 MCP Client。
- * require_approval：写入 pending，阻塞等待 CLI `approvals decide`。
+ * require_approval：立刻返回 pending，由 Agent 在同会话调 guardian_decide。
  */
 export async function startProxy(options: {
   configPath: string;
@@ -75,18 +85,7 @@ export async function startProxy(options: {
     : undefined;
   const audit = new AuditStore(auditDb);
   const approvals = new ApprovalStore(auditDb);
-
-  let syncClient: SyncClient | null = null;
-  if (config.sync?.enabled && config.sync.endpoint) {
-    const token =
-      config.sync.deviceToken ??
-      (await registerDevice(config.sync.endpoint, config.sync.owner));
-    syncClient = new SyncClient({
-      endpoint: config.sync.endpoint,
-      deviceToken: token,
-    });
-    console.error(`[mcp-guardian] sync enabled endpoint=${config.sync.endpoint}`);
-  }
+  const pending = new PendingCallCache();
 
   const clients = new Map<string, Client>();
   const routes = new Map<string, ToolRoute>();
@@ -122,8 +121,17 @@ export async function startProxy(options: {
     }
   }
 
+  function findRoute(serverName: string, toolName: string): ToolRoute | undefined {
+    for (const route of routes.values()) {
+      if (route.serverName === serverName && route.toolName === toolName) {
+        return route;
+      }
+    }
+    return undefined;
+  }
+
   const server = new Server(
-    { name: "mcp-guardian", version: "0.1.0" },
+    { name: "mcp-guardian", version: "0.2.0" },
     { capabilities: { tools: {} } },
   );
 
@@ -141,21 +149,143 @@ export async function startProxy(options: {
         },
       });
     }
+    tools.push(
+      {
+        name: META_PENDING,
+        description:
+          "List MCP Guardian pending approvals waiting for the human in this Agent chat.",
+        inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      },
+      {
+        name: META_DECIDE,
+        description:
+          "After the human approves/denies in chat, resume a pending tool call. decision=allow|deny.",
+        inputSchema: {
+          type: "object",
+          required: ["id", "decision"],
+          properties: {
+            id: { type: "string", description: "approval_id from approval_required" },
+            decision: { type: "string", enum: ["allow", "deny"] },
+          },
+          additionalProperties: false,
+        },
+      },
+    );
     return { tools };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const started = Date.now();
+    const name = request.params.name;
+    const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+
+    if (name === META_PENDING) {
+      const rows = approvals.listPending().map((r) => ({
+        id: r.id,
+        server: r.server,
+        tool: r.tool,
+        status: r.status,
+        expires_at: r.expires_at,
+        reasons: JSON.parse(r.reasons_json) as string[],
+        args_redacted: JSON.parse(r.args_redacted_json) as Record<string, unknown>,
+        in_memory: Boolean(pending.get(r.id)),
+      }));
+      return textResult(JSON.stringify({ pending: rows }, null, 2));
+    }
+
+    if (name === META_DECIDE) {
+      const id = String(args.id ?? "");
+      const decisionRaw = String(args.decision ?? "");
+      if (!id || (decisionRaw !== "allow" && decisionRaw !== "deny")) {
+        return policyError(
+          ErrorCodes.DOWNSTREAM_ERROR,
+          "guardian_decide requires id and decision=allow|deny",
+        );
+      }
+      const allow = decisionRaw === "allow";
+      const row = approvals.decide(id, allow);
+      if (!row || (row.status !== "approved" && row.status !== "denied")) {
+        return policyError(
+          ErrorCodes.APPROVAL_DENIED,
+          `approval not pending: ${id}`,
+        );
+      }
+      if (!allow) {
+        pending.take(id);
+        audit.append({
+          id,
+          server: row.server,
+          tool: row.tool,
+          decision: {
+            action: "require_approval",
+            risk: 99,
+            matched_rule_id: null,
+            reasons: JSON.parse(row.reasons_json) as string[],
+            redacted_args: JSON.parse(row.args_redacted_json) as Record<
+              string,
+              unknown
+            >,
+            mode: policy.mode,
+          },
+          latencyMs: Date.now() - started,
+          resultStatus: "denied_by_user",
+        });
+        return policyError(ErrorCodes.APPROVAL_DENIED, "user denied in agent chat");
+      }
+
+      const call = pending.take(id);
+      if (!call) {
+        return policyError(
+          ErrorCodes.DOWNSTREAM_ERROR,
+          "pending context missing (gateway restarted?). Re-invoke the original tool.",
+        );
+      }
+      const route = findRoute(call.server, call.tool);
+      if (!route) {
+        return policyError(
+          ErrorCodes.DOWNSTREAM_ERROR,
+          `route missing for ${call.server}.${call.tool}`,
+        );
+      }
+      try {
+        const result = (await route.client.callTool({
+          name: route.toolName,
+          arguments: call.forwardArgs,
+        })) as CallToolResult;
+        audit.append({
+          id,
+          server: call.server,
+          tool: call.tool,
+          decision: call.decision,
+          latencyMs: Date.now() - started,
+          resultStatus: result.isError ? "downstream_error" : "approved_then_allowed",
+        });
+        return result;
+      } catch (err) {
+        audit.append({
+          id,
+          server: call.server,
+          tool: call.tool,
+          decision: call.decision,
+          latencyMs: Date.now() - started,
+          resultStatus: "downstream_exception",
+        });
+        return policyError(
+          ErrorCodes.DOWNSTREAM_ERROR,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
     const callId = randomUUID();
-    const route = routes.get(request.params.name);
+    const route = routes.get(name);
     if (!route) {
       return policyError(
         ErrorCodes.DOWNSTREAM_ERROR,
-        `unknown tool: ${request.params.name}`,
+        `unknown tool: ${name}`,
       );
     }
 
-    const args = (request.params.arguments ?? {}) as Record<string, unknown>;
     const decision = evaluate(policy, {
       server: route.serverName,
       tool: route.toolName,
@@ -174,12 +304,11 @@ export async function startProxy(options: {
       return policyError(ErrorCodes.POLICY_DENIED, decision.reasons.join("; "));
     }
 
-    let forwardArgs =
+    const forwardArgs =
       decision.action === "redact" ? decision.redacted_args : args;
 
     if (decision.action === "require_approval") {
-      const ttl =
-        policy.defaults.approval_ttl_seconds ?? 300;
+      const ttl = policy.defaults.approval_ttl_seconds ?? 300;
       approvals.create({
         id: callId,
         server: route.serverName,
@@ -188,62 +317,28 @@ export async function startProxy(options: {
         reasons: decision.reasons,
         ttlSeconds: ttl,
       });
-      // stderr 提示操作者，避免污染 MCP stdio
+      const call = {
+        id: callId,
+        server: route.serverName,
+        tool: route.toolName,
+        forwardArgs: decision.redacted_args,
+        decision,
+        createdAt: new Date().toISOString(),
+      };
+      pending.put(call);
+      audit.append({
+        id: callId,
+        server: route.serverName,
+        tool: route.toolName,
+        decision,
+        latencyMs: Date.now() - started,
+        resultStatus: "pending_approval",
+      });
       console.error(
-        `[mcp-guardian] approval required id=${callId} server=${route.serverName} tool=${route.toolName}`,
+        `[mcp-guardian] approval_required id=${callId} — agent must ask user then call guardian_decide`,
       );
-      console.error(
-        `[mcp-guardian] decide: mcp-guardian approvals decide ${callId} --allow`,
-      );
-
-      if (syncClient) {
-        await syncClient.pushAndPull({
-          approvals: [
-            {
-              id: callId,
-              status: "pending",
-              server: route.serverName,
-              tool: route.toolName,
-              args_redacted: decision.redacted_args,
-              reasons: decision.reasons,
-              created_at: new Date().toISOString(),
-              decided_at: null,
-            },
-          ],
-        });
-      }
-
-      const decided = await waitForApproval(approvals, callId, syncClient);
-      if (decided.status === "denied") {
-        audit.append({
-          id: callId,
-          server: route.serverName,
-          tool: route.toolName,
-          decision,
-          latencyMs: Date.now() - started,
-          resultStatus: "denied_by_user",
-        });
-        return policyError(
-          ErrorCodes.APPROVAL_DENIED,
-          decision.reasons.join("; "),
-        );
-      }
-      if (decided.status === "expired") {
-        audit.append({
-          id: callId,
-          server: route.serverName,
-          tool: route.toolName,
-          decision,
-          latencyMs: Date.now() - started,
-          resultStatus: "approval_expired",
-        });
-        return policyError(
-          ErrorCodes.APPROVAL_EXPIRED,
-          `approval timed out after ${ttl}s`,
-        );
-      }
-      // approved → 继续转发（参数仍用脱敏视图）
-      forwardArgs = decision.redacted_args;
+      // 非错误返回：让 Agent 能解析并继续对话问用户
+      return textResult(pendingApprovalPayload(call, ttl), false);
     }
 
     try {
@@ -257,12 +352,7 @@ export async function startProxy(options: {
         tool: route.toolName,
         decision,
         latencyMs: Date.now() - started,
-        resultStatus:
-          decision.action === "require_approval"
-            ? "approved_then_allowed"
-            : result.isError
-              ? "downstream_error"
-              : "ok",
+        resultStatus: result.isError ? "downstream_error" : "ok",
       });
       return result;
     } catch (err) {
@@ -307,31 +397,4 @@ export function evalToolCall(options: {
     tool: options.tool,
     args,
   });
-}
-
-/** 本地 CLI 批准与 Web Dashboard 批准均可结束等待 */
-async function waitForApproval(
-  store: ApprovalStore,
-  id: string,
-  syncClient: SyncClient | null,
-) {
-  for (;;) {
-    if (syncClient) {
-      try {
-        const remote = await syncClient.pushAndPull({});
-        const hit = remote.decided.find((d) => d.id === id);
-        if (hit?.status === "approved" || hit?.status === "denied") {
-          store.decide(id, hit.status === "approved");
-        }
-      } catch (err) {
-        console.error(
-          `[mcp-guardian] sync poll failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-    const row = store.get(id);
-    if (!row) throw new Error(`approval not found: ${id}`);
-    if (row.status !== "pending") return row;
-    await new Promise((r) => setTimeout(r, 400));
-  }
 }

@@ -1,9 +1,9 @@
 # MCP Guardian 产品总方案
 
 > 日期：2026-07-15  
-> 状态：**决策已锁定，可直接进入实施**  
-> 决策权：产品推进计划由本方案全权定稿；执行时以验收标准为准，不再反复确认产品边界。  
-> 定位：个人作品集第三主项目；与 `ai-photo-studio-cn`（多模态 C 端 SaaS）、`evidence-graph`（可追溯研究 Agent）形成能力三角。
+> 状态：**部分章节已被 [`product-redesign-2026-07-16.md`](./product-redesign-2026-07-16.md) 取代**（主路径改为本地 Gateway + Agent 会话内审批；Web 仅介绍/FAQ）。  
+> 决策权：产品推进由 Agent 定稿；用户验收最终结果。  
+> 定位：个人作品集第三主项目；与 `ai-photo-studio-cn`、`evidence-graph` 形成能力三角。
 
 ## 1. 最终决策（已锁定）
 
