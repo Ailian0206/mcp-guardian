@@ -29,7 +29,7 @@ Related portfolio projects (separate repos):
    - 触及审核协议路径：从准确 `baseRefOid` detached worktree 运行 `/pr-review --trusted-base <PR编号>`  
 4. 出现 `claude-changes-requested` → 同分支修复 → push → 重新审核；**不得**手工改标签或冒充审核评论。  
 5. 门禁全绿（本地 + CI + `claude-reviewed` 且无 `claude-changes-requested`，marker 匹配当前 head）后，**无需人工批准**即可：  
-   `gh pr merge <n> --merge --delete-branch`  
+   `bash scripts/pr-gate.sh <PR编号>`（或 `gh pr merge <n> --merge --delete-branch`）  
 6. Cursor Bugbot 额度耗尽期间不再作为合并门禁。
 
 Branch prefixes: `feat/`, `fix/`, `docs/`, `ci/`, `chore/`（`docs/` 分支默认只作合并进功能 PR 的载体，不单独提 PR）。

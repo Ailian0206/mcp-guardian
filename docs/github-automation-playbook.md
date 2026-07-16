@@ -108,6 +108,14 @@ MEDIUM/LOW 由开发 agent 技术判断，不要求人工。
 4. 无 `claude-changes-requested`  
 5. 无未解决的有效 CRITICAL/HIGH  
 
+开发 agent 可一键执行（触发审核 + 等待 + 合并）：
+
+```bash
+bash scripts/pr-gate.sh <PR编号>
+```
+
+或手动：
+
 ```bash
 gh pr ready <n>
 gh pr merge <n> --merge --delete-branch
