@@ -2,7 +2,8 @@
 
 AI Agent 调用 MCP 工具前的权限、脱敏、审批与审计网关。
 
-仓库：<https://github.com/Ailian0206/mcp-guardian>
+仓库：<https://github.com/Ailian0206/mcp-guardian>  
+English summary: [`README.en.md`](README.en.md)
 
 ## 状态
 

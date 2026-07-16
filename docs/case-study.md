@@ -1,7 +1,7 @@
 # Case Study：MCP Guardian（初稿）
 
 > 日期：2026-07-15  
-> 状态：MVP 本地可演示；公开 Production URL 待部署后补全
+> 状态：MVP 本地可演示；Week 5 演示素材见 `docs/assets/`
 
 ## 问题
 
@@ -49,5 +49,5 @@ pnpm dev:web    # http://127.0.0.1:3040
 ## 已知边界（诚实披露）
 
 - Week 3/4 Dashboard 默认本地 cookie 会话，未强制 Supabase OAuth  
-- Bugbot PR 审阅受 Cursor API 额度限制；合并以 CI + 人工为准  
+- PR 审核由 Claude `/pr-review` 替代 Bugbot（见 `scripts/pr-gate.sh`）  
 - Production 部署（Vercel）需维护者账号操作；本地验收不依赖云
