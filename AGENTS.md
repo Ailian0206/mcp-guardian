@@ -22,15 +22,15 @@ Related portfolio projects (separate repos):
 
 完整说明见 `docs/github-automation-playbook.md` 与 `.cursor/rules/pr-review-gate.mdc`。摘要：
 
-1. 从 `main` 拉**周级大切片**分支；分支内小步中文 Conventional Commit（可 push，默认仍不开 PR）。  
-2. **开放 PR 上限 = 1**；至少完成一整周验收才开 PR。纯文档/状态面板禁止单独开 PR。  
-3. 开出或更新 PR 后必须触发独立 Claude 审核：  
-   - 普通 PR：`claude --permission-mode auto --model sonnet -p "/pr-review"`  
-   - 触及审核协议路径：从准确 `baseRefOid` detached worktree 运行 `/pr-review --trusted-base <PR编号>`  
-4. 出现 `claude-changes-requested` → 同分支修复 → push → 重新审核；**不得**手工改标签或冒充审核评论。  
-5. 门禁全绿（本地 + CI + `claude-reviewed` 且无 `claude-changes-requested`，marker 匹配当前 head）后，**无需人工批准**即可：  
-   `bash scripts/pr-gate.sh <PR编号>`（或 `gh pr merge <n> --merge --delete-branch`）  
-6. Cursor Bugbot 额度耗尽期间不再作为合并门禁。
+1. 从 `main` 拉**里程碑大切片**分支；分支内小步中文 Conventional Commit（可 push，**默认仍不开 PR**）。  
+2. **开放 PR 上限 = 1**；**只有里程碑意义才开 PR**。禁止按天、按小修复、纯文档单独开 PR。  
+3. 开出 PR 后 Claude **只审一次**：  
+   - 普通：`claude --permission-mode auto --model sonnet -p "/pr-review"`  
+   - 触及审核协议路径：从准确 `baseRefOid` detached worktree 跑 `/pr-review --trusted-base <PR>`  
+4. **有问题**：Claude 评论 → 同分支按评论修复 → push → **不再复审** → 本地+CI 绿后直接 merge。  
+5. **没问题**：本地+CI 绿后直接 merge。  
+6. 一键：`bash scripts/pr-gate.sh <PR>`；修完待合用 `SKIP_PR_REVIEW=1 bash scripts/pr-gate.sh <PR>`。  
+7. **不得**手工改审核标签或冒充审核评论；Bugbot 不再作门禁。
 
 Branch prefixes: `feat/`, `fix/`, `docs/`, `ci/`, `chore/`（`docs/` 分支默认只作合并进功能 PR 的载体，不单独提 PR）。
 
