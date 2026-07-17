@@ -5,24 +5,38 @@ export default function HomePage() {
     <AppShell
       nav={
         <>
-          <a href="/demo">Demo</a>
-          <a href="/app">Dashboard</a>
+          <a href="/faq">FAQ</a>
+          <a href="/demo">试跑策略</a>
+          <a
+            href="https://github.com/Ailian0206/mcp-guardian"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
         </>
       }
     >
-      <p style={{ letterSpacing: "0.08em", textTransform: "uppercase", color: "#4d647f", fontSize: 12 }}>
-        Pre-call policy · not post-call trace
+      <p
+        style={{
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#4d647f",
+          fontSize: 12,
+        }}
+      >
+        Local MCP middleware · not a dashboard SaaS
       </p>
       <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.4rem)", lineHeight: 1.1, margin: "12px 0 16px" }}>
         MCP Guardian
       </h1>
       <p style={{ maxWidth: 640, fontSize: 18, lineHeight: 1.6, color: "#33485f" }}>
-        在 Agent 调用 MCP 工具之前执行 allow / deny / redact / require_approval，
-        并留下可回放的审计记录。这不是 Langfuse/LangSmith 一类的 Trace 平台。
+        给 Cursor / Codex 用的本地策略网关：Agent 调工具前自动拦截。
+        高危操作在<strong>同一次 Agent 对话</strong>里问你批不批——不用开网页审批台。
       </p>
       <div style={{ display: "flex", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
         <a
-          href="/demo"
+          href="/faq"
           style={{
             background: "#16324f",
             color: "#fff",
@@ -31,10 +45,10 @@ export default function HomePage() {
             textDecoration: "none",
           }}
         >
-          查看公开 Demo
+          怎么用（FAQ）
         </a>
         <a
-          href="/app"
+          href="/demo"
           style={{
             border: "1px solid #16324f",
             color: "#16324f",
@@ -43,9 +57,36 @@ export default function HomePage() {
             textDecoration: "none",
           }}
         >
-          进入 Dashboard
+          浏览器里试跑策略
         </a>
       </div>
+
+      <section style={{ marginTop: 48 }}>
+        <h2 style={{ fontSize: 20 }}>一键安装</h2>
+        <pre
+          style={{
+            background: "#0f1b2a",
+            color: "#e8eef7",
+            padding: 16,
+            borderRadius: 12,
+            overflow: "auto",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >{`git clone https://github.com/Ailian0206/mcp-guardian.git
+cd mcp-guardian
+bash scripts/install.sh
+# 重启 Cursor / Codex → 使用 mcp-guardian`}</pre>
+      </section>
+
+      <section style={{ marginTop: 48 }}>
+        <h2 style={{ fontSize: 20 }}>日常怎么工作</h2>
+        <ol style={{ maxWidth: 640, lineHeight: 1.7, color: "#33485f" }}>
+          <li>Agent 正常调工具；多数 allow / deny / redact 自动完成。</li>
+          <li>碰到高危：工具返回「需要批准」→ Agent 在对话里问你。</li>
+          <li>你说可以 / 不行 → Agent 调用 <code>guardian_decide</code> → 继续或拒绝。</li>
+        </ol>
+      </section>
 
       <section style={{ marginTop: 48 }}>
         <h2 style={{ fontSize: 20 }}>与 Trace 平台的差异</h2>
@@ -64,33 +105,12 @@ export default function HomePage() {
               <td style={td}>调用前拦截</td>
             </tr>
             <tr>
-              <td style={td}>对象</td>
-              <td style={td}>Trace / 评测</td>
-              <td style={td}>Tool Call / Policy / Approval</td>
+              <td style={td}>你怎么用</td>
+              <td style={td}>打开观测站</td>
+              <td style={td}>装进 IDE，跟 Agent 对话即可</td>
             </tr>
           </tbody>
         </table>
-      </section>
-
-      <section style={{ marginTop: 48 }}>
-        <h2 style={{ fontSize: 20 }}>本地快速开始</h2>
-        <pre
-          style={{
-            background: "#0f1b2a",
-            color: "#e8eef7",
-            padding: 16,
-            borderRadius: 12,
-            overflow: "auto",
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >{`pnpm install && pnpm build
-pnpm guardian eval --policy policies/default.fail-closed.yaml \\
-  --server demo-fs --tool read_file --args '{"path":"/workspace/a.txt"}'
-pnpm dev:web   # http://127.0.0.1:3040`}</pre>
-        <p style={{ color: "#4d647f", marginTop: 12 }}>
-          Cursor MCP 配置示例见 README；默认 fail-closed，危险 shell 需人工批准。
-        </p>
       </section>
     </AppShell>
   );

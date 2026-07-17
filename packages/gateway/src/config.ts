@@ -16,6 +16,7 @@ export const GuardianConfigSchema = z.object({
   policyFile: z.string().min(1),
   downstreams: z.array(DownstreamConfigSchema).min(1),
   auditDb: z.string().optional(),
+  // 可选云同步（P1）；会话审批主路径不使用，保留配置字段避免破坏旧 yaml
   sync: z
     .object({
       enabled: z.boolean().default(false),

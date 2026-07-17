@@ -1,44 +1,39 @@
 ---
-description: PR 全自动审核门禁：Claude /pr-review 替代 Bugbot；阻塞 finding 清零后自动 merge
+description: PR 门禁：Claude /pr-review 只审一次；修完直接 merge；PR 仅里程碑
 alwaysApply: true
 ---
 
-# PR 全自动审核门禁
+# PR 审核与合并门禁
 
-Cursor Bugbot 额度不可用期间，本仓库使用独立 Claude Code `pr-review` skill。流程不包含人工审核步骤。
+Cursor Bugbot 额度不可用期间，本仓库使用独立 Claude Code `pr-review` skill。
 
-## 开出或更新 PR 后
+## 开 PR 红线
 
-1. 查询 PR 编号、`baseRefOid`、`headRefOid` 和变更文件。
-2. 普通 PR 在仓库根目录运行：
+- **同时最多 1 个开放 PR**。
+- **只在有里程碑意义时开 PR**（整周/大切片验收完成）；禁止按天、按小任务、纯文档单独开 PR。
+- 日常小步 commit 可 push 到功能分支备份，但不开第二个 PR。
+
+## Claude 审核：只审一次
+
+1. 开出（或里程碑 PR 首次就绪）后触发一次：
 
    ```bash
    claude --permission-mode auto --model sonnet -p "/pr-review"
    ```
 
-3. 任一变更触及以下审核协议路径时，不得从 PR 分支运行 reviewer：
+2. 触及审核协议路径时，从准确 `baseRefOid` detached worktree 运行 `/pr-review --trusted-base <PR>`。
 
-   - `.claude/skills/pr-review/**`
-   - `.cursor/rules/pr-review-gate.mdc`
-   - `AGENT.md` 的审核/合并门禁
-   - `docs/github-automation-playbook.md` 的审核协议
-   - `docs/bugbot-autofix-workflow.md`
+3. **禁止复审**：Claude 评论后，开发 agent 按评论修复 → 本地门禁 + CI 绿 → **直接 merge**。不再跑第二次 `/pr-review`。
 
-   必须在准确 `baseRefOid` 的临时 detached worktree 运行：
+4. Claude 无阻塞问题 → 本地 + CI 绿 → 直接 merge。
 
-   ```bash
-   claude --permission-mode auto --model sonnet -p "/pr-review --trusted-base <PR编号>"
-   ```
+5. 不得手工改 Claude 标签，不得冒充审核评论。
 
-4. 审核完成后清理 clean 的临时 worktree。禁止强制删除包含改动的 worktree。
+## 合并
 
-## 自动修复与复审
+```bash
+bash scripts/pr-gate.sh <PR>                 # 首次：触发一次审核后合并（有 changes-requested 会 exit 2）
+SKIP_PR_REVIEW=1 bash scripts/pr-gate.sh <PR>  # 已按评论修好：跳过审核，门禁绿后合并
+```
 
-- 出现 `claude-changes-requested`：验证 CRITICAL/HIGH finding，在原分支修复，跑门禁，push 后重新审核。
-- 只有 `claude-reviewed`、marker SHA 匹配当前 head，且没有 `claude-changes-requested` 时审核才通过。
-- MEDIUM/LOW 由开发 agent 自动技术判断，不要求人工批准。
-- 不得手工操作 Claude 标签，不得冒充 Claude 发布审核评论。
-
-## 自动合并
-
-本地门禁、GitHub CI 和 Claude 审核全部通过后，直接使用 merge commit 合并并删除远端分支。禁止 squash、rebase、force push。
+合并方式：merge commit；禁止 squash / rebase / force push。

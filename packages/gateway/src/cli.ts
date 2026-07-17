@@ -4,15 +4,21 @@ import { PACKAGE_NAME } from "@mcp-guardian/shared";
 import { ApprovalStore } from "./approvals.js";
 import { AuditStore } from "./audit.js";
 import { evalToolCall, startProxy } from "./index.js";
+import { installClients } from "./install-client.js";
 
 function usage(): never {
   console.error(`Usage:
   ${PACKAGE_NAME} eval --policy <file> --server <name> --tool <name> [--args <json>]
   ${PACKAGE_NAME} start --config <file>
+  ${PACKAGE_NAME} install [--cursor] [--codex] [--all]
   ${PACKAGE_NAME} audits list [--limit N]
   ${PACKAGE_NAME} audits show <id>
   ${PACKAGE_NAME} approvals list
   ${PACKAGE_NAME} approvals decide <id> --allow|--deny
+
+Notes:
+  install  一键写入 Cursor/Codex MCP 配置（先 pnpm build）
+  高危审批：在 Agent 对话里确认后由 Agent 调用 guardian_decide（非外置 CLI）
 `);
   process.exit(2);
 }
@@ -41,6 +47,20 @@ async function main(): Promise<void> {
     const config = flag(rest, "--config");
     if (!config) usage();
     await startProxy({ configPath: path.resolve(config) });
+    return;
+  }
+
+  if (cmd === "install") {
+    const all = rest.includes("--all");
+    const cursor = all || rest.includes("--cursor");
+    const codex = all || rest.includes("--codex");
+    // 无参数时默认 Cursor + Codex，真正一键
+    const targets =
+      !cursor && !codex
+        ? { cursor: true, codex: true }
+        : { cursor, codex };
+    const result = installClients(targets);
+    for (const m of result.messages) console.log(m);
     return;
   }
 

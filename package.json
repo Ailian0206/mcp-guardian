@@ -13,7 +13,8 @@
     "build": "tsc -b && pnpm --filter @mcp-guardian/web build",
     "dev:gateway": "pnpm --filter @mcp-guardian/gateway dev",
     "dev:web": "pnpm --filter @mcp-guardian/web dev",
-    "guardian": "node ./packages/gateway/dist/cli.js"
+    "guardian": "node ./packages/gateway/dist/cli.js",
+    "install:mcp": "node ./packages/gateway/dist/cli.js install"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

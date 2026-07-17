@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# 开发 agent 用：触发 Claude /pr-review，等待审核信号，门禁通过后自动 merge。
+# 开发 agent 用：Claude /pr-review 只审一次 →（有问题则先修再）本地+CI 绿 → merge。
 # 审核本身只读，由 Claude Code 执行；本脚本不冒充审核评论或改标签。
+# 不复审：出现 changes-requested 时修完后设 SKIP_PR_REVIEW=1 再跑本脚本即可合并。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -51,42 +52,39 @@ run_pr_review() {
     if [[ ! -d "$wt" ]]; then
       git worktree add --detach "$wt" "$BASE_OID"
     fi
-    echo "触发可信基线审核: /pr-review --trusted-base $PR"
+    echo "触发可信基线审核（仅一次）: /pr-review --trusted-base $PR"
     (cd "$wt" && claude --permission-mode auto --model sonnet -p "/pr-review --trusted-base $PR")
-    # clean detached worktree 可删
     if [[ -z "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]; then
       git worktree remove "$wt" 2>/dev/null || true
     fi
   else
-    echo "触发普通审核: /pr-review"
+    echo "触发普通审核（仅一次）: /pr-review"
     claude --permission-mode auto --model sonnet -p "/pr-review"
   fi
 }
 
-marker_for_head() {
-  gh pr view "$PR" --json comments \
-    -q "[.comments[].body | capture(\"<!-- CLAUDE_REVIEWED_SHA: (?<sha>[0-9a-f]+) -->\") | .sha] | index(\"$HEAD_OID\") != null"
+# 任一评论里出现过 CLAUDE_REVIEWED_SHA 即视为「已审过一次」（修完不要求匹配新 head）
+ever_reviewed() {
+  [[ "$(
+    gh pr view "$PR" --json comments \
+      -q '[.comments[].body | select(test("CLAUDE_REVIEWED_SHA"))] | length > 0'
+  )" == "true" ]]
 }
 
 has_label() {
   local name="$1"
-  # gh -q 成功时 exit 0，true/false 在 stdout；必须比较字符串
   [[ "$(
     gh pr view "$PR" --json labels \
       -q "[.labels[].name] | index(\"$name\") != null"
   )" == "true" ]]
 }
 
-wait_for_review() {
+# 等 Claude 落标签；通过或要求修改都算「审完一次」
+wait_for_one_review() {
   local i max="${PR_REVIEW_WAIT_MAX:-90}"
   for ((i = 1; i <= max; i++)); do
-    HEAD_OID="$(gh pr view "$PR" --json headRefOid -q '.headRefOid')"
-    if has_label "claude-changes-requested"; then
-      echo "存在 claude-changes-requested，请在分支 $HEAD_BRANCH 修复后 push，再重新运行本脚本" >&2
-      exit 2
-    fi
-    if has_label "claude-reviewed" && [[ "$(marker_for_head)" == "true" ]]; then
-      echo "审核通过: claude-reviewed + marker 匹配 $HEAD_OID"
+    if has_label "claude-reviewed" || has_label "claude-changes-requested" || ever_reviewed; then
+      echo "Claude 已完成一次审核"
       return 0
     fi
     sleep 10
@@ -98,7 +96,6 @@ wait_for_review() {
 ensure_gates() {
   echo "运行本地门禁..."
   pnpm lint && pnpm typecheck && pnpm test
-  # 审核刚结束时 CI 常仍 pending；必须 watch 等到结论，不能一次性 grep pass
   echo "等待 GitHub CI..."
   if ! gh pr checks "$PR" --watch --fail-fast; then
     echo "CI 未通过" >&2
@@ -116,16 +113,22 @@ merge_pr() {
 
 SKIP_REVIEW="${SKIP_PR_REVIEW:-}"
 if [[ "$SKIP_REVIEW" != "1" ]]; then
-  # 已有当前 head 的 marker 则跳过重复触发
-  HEAD_OID="$(gh pr view "$PR" --json headRefOid -q '.headRefOid')"
-  if [[ "$(marker_for_head)" != "true" ]]; then
-    run_pr_review
+  if ever_reviewed || has_label "claude-reviewed" || has_label "claude-changes-requested"; then
+    echo "本 PR 已审过一次，跳过复审（修完直接走本地+CI+merge）"
   else
-    echo "当前 head 已有 CLAUDE_REVIEWED_SHA，跳过重复触发审核"
+    run_pr_review
+    wait_for_one_review
   fi
-  wait_for_review
+
+  # 有修改意见：停下来让开发 agent 修；修完用 SKIP_PR_REVIEW=1 再跑合并
+  if has_label "claude-changes-requested"; then
+    echo "存在 claude-changes-requested：请按评论修 → push → 再执行：" >&2
+    echo "  SKIP_PR_REVIEW=1 bash scripts/pr-gate.sh $PR" >&2
+    echo "（不再触发第二次 /pr-review）" >&2
+    exit 2
+  fi
 else
-  echo "SKIP_PR_REVIEW=1，跳过触发/等待审核"
+  echo "SKIP_PR_REVIEW=1：跳过审核，直接门禁+合并"
 fi
 
 ensure_gates

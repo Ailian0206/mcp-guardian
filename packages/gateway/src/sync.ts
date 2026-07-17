@@ -1,3 +1,4 @@
+/** 可选云同步客户端（P1）；会话内审批主路径不调用，保留 schema/模块占位 */
 export type SyncClientOptions = {
   endpoint: string;
   deviceToken: string;

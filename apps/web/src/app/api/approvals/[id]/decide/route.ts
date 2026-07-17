@@ -25,6 +25,19 @@ export async function POST(
   }
   item.status = decision === "allow" ? "approved" : "denied";
   item.decided_at = new Date().toISOString();
+  // 同步更新同 owner 下对应 pending 审计，便于 A5 回放
+  const related = store.audits.find(
+    (a) =>
+      a.owner === session.userId &&
+      a.server === item.server &&
+      a.tool === item.tool &&
+      a.action === "require_approval" &&
+      a.result_status === "pending_approval",
+  );
+  if (related) {
+    related.result_status =
+      decision === "allow" ? "approved_then_allowed" : "denied_after_approval";
+  }
   writeStore(store);
   return NextResponse.redirect(new URL("/app/approvals", request.url), 303);
 }

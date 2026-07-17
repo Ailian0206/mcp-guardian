@@ -5,12 +5,13 @@ test.describe("Week4 smoke", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "MCP Guardian" })).toBeVisible();
     await expect(page.getByText("与 Trace 平台的差异")).toBeVisible();
-    await expect(page.getByText("本地快速开始")).toBeVisible();
+    await expect(page.getByText("一键安装")).toBeVisible();
   });
 
   test("公开 Demo 可回放且含统计", async ({ page }) => {
     await page.goto("/demo");
-    await expect(page.getByRole("heading", { name: "公开 Demo 回放" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /公开 Demo/ })).toBeVisible();
+    await expect(page.getByText("现场试跑策略")).toBeVisible();
     // 统计卡用 exact，避免与列表里同名 action 撞 strict mode
     await expect(page.getByText("allow", { exact: true })).toBeVisible();
     await expect(page.getByText("deny", { exact: true })).toBeVisible();
