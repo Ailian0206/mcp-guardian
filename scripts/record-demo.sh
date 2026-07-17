@@ -29,3 +29,10 @@ if command -v ffmpeg >/dev/null 2>&1; then
 else
   echo "未安装 ffmpeg，跳过 GIF；可用: brew install ffmpeg"
 fi
+
+# 落地页播放副本
+WEB_PUBLIC="$ROOT/apps/web/public"
+mkdir -p "$WEB_PUBLIC"
+cp "$OUT/demo-walkthrough.webm" "$WEB_PUBLIC/demo-walkthrough.webm"
+[[ -f "$OUT/demo-walkthrough.gif" ]] && cp "$OUT/demo-walkthrough.gif" "$WEB_PUBLIC/demo-walkthrough.gif"
+echo "已同步: apps/web/public/demo-walkthrough.*"

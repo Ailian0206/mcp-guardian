@@ -1,11 +1,12 @@
 # MCP Guardian 四周推进计划
 
 > 日期：2026-07-15  
-> 状态：已锁定  
-> 前置条件：仓库已创建；Week 0 CI 绿后进入 Week 1  
-> 决策源：[`product-plan.md`](./product-plan.md)  
+> 状态：**历史计划**（Week 工程已落地；当前交付定义以 [`product-redesign-2026-07-16.md`](./product-redesign-2026-07-16.md) 为准）  
+> 进度面板：[`../PROJECT_STATUS.md`](../PROJECT_STATUS.md)  
+> 原决策源：[`product-plan.md`](./product-plan.md)（「双主路径 / Dashboard 审批」已被 redesign 取代）  
 > 执行原则：按周交付可演示增量；每日以验收命令为准；不扩大 P0。  
 > 变更（2026-07-15）：用户授权直接创建 GitHub 并按计划推进；原「等 Evidence Graph 公开演示」门槛不再阻塞工程实施。
+> 变更（2026-07-17）：里程碑 A（真实 Filesystem）已合；里程碑 B 仅本仓 Web/文档，不按本文件 Week 3 Dashboard 主路径推进。
 
 ## 0. 启动门槛（Go / No-Go）
 

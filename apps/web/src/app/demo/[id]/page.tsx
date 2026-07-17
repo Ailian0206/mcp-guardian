@@ -15,37 +15,57 @@ export default async function DemoDetailPage({
   const meta = DEMO_CASE_META[item.id];
 
   return (
-    <AppShell nav={<a href="/demo">← Demo</a>}>
-      <p style={{ fontSize: 12, color: "#4d647f", letterSpacing: "0.06em" }}>
+    <AppShell
+      nav={
+        <>
+          <a href="/" style={navLink}>
+            首页
+          </a>
+          <a href="/demo" style={navLink}>
+            ← Demo
+          </a>
+          <a href="/faq" style={navLink}>
+            FAQ
+          </a>
+        </>
+      }
+    >
+      <p
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          letterSpacing: "0.08em",
+          color: "var(--accent)",
+          margin: 0,
+        }}
+      >
         {meta?.acceptance ?? "回放"} · {item.server}.{item.tool}
       </p>
-      <h1 style={{ marginTop: 8 }}>{meta?.title ?? `${item.server}.${item.tool}`}</h1>
-      <p style={{ maxWidth: 640, lineHeight: 1.6, color: "#33485f" }}>
+      <h1 className="mg-h2" style={{ marginTop: 12, fontSize: "clamp(1.6rem, 3vw, 2rem)" }}>
+        {meta?.title ?? `${item.server}.${item.tool}`}
+      </h1>
+      <p className="mg-lead" style={{ marginTop: 12 }}>
         {meta?.story ?? item.reasons.join("；")}
       </p>
-      <p>
+      <p style={{ marginTop: 20, lineHeight: 1.6 }}>
         <strong>期望：</strong>
         {meta?.expect ?? `${item.action} / ${item.result_status}`}
       </p>
-      <p>
+      <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
         实际：action=<code>{item.action}</code> · risk={item.risk} · rule=
         <code>{item.matched_rule_id ?? "none"}</code> · status=
         <code>{item.result_status}</code>
       </p>
-      <h2>脱敏后参数（审计可见）</h2>
-      <pre
-        style={{
-          background: "#0f1b2a",
-          color: "#e8eef7",
-          padding: 16,
-          borderRadius: 12,
-          overflow: "auto",
-        }}
-      >
+      <h2 className="mg-h2" style={{ fontSize: 18, marginTop: 36 }}>
+        脱敏后参数（审计可见）
+      </h2>
+      <pre className="mg-code" style={{ marginTop: 12 }}>
         {JSON.stringify(item.args_redacted, null, 2)}
       </pre>
-      <h2>Reasons</h2>
-      <ul>
+      <h2 className="mg-h2" style={{ fontSize: 18, marginTop: 36 }}>
+        Reasons
+      </h2>
+      <ul style={{ color: "var(--muted)", lineHeight: 1.7 }}>
         {item.reasons.map((r) => (
           <li key={r}>{r}</li>
         ))}
@@ -53,3 +73,10 @@ export default async function DemoDetailPage({
     </AppShell>
   );
 }
+
+const navLink = {
+  textDecoration: "none" as const,
+  fontSize: 13,
+  color: "var(--muted)",
+  fontWeight: 500,
+};
