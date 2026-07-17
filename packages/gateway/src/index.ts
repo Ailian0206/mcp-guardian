@@ -24,6 +24,7 @@ import {
   newConfirmCode,
   pendingApprovalPayload,
 } from "./pending-cache.js";
+import { resolveDownstreamArgs } from "./resolve-args.js";
 
 function policyError(code: string, message: string): CallToolResult {
   return {
@@ -96,10 +97,11 @@ export async function startProxy(options: {
     const resolved: DownstreamConfig = {
       name: ds.name,
       command: ds.command,
-      args: ds.args.map((a) =>
-        a.startsWith(".") || a.includes("/") || a.endsWith(".js")
-          ? resolveFromConfigDir(options.configPath, a)
-          : a,
+      // 勿把 @scope/pkg 误 resolve 成相对路径
+      args: resolveDownstreamArgs(
+        options.configPath,
+        ds.args,
+        resolveFromConfigDir,
       ),
       ...(ds.cwd
         ? { cwd: resolveFromConfigDir(options.configPath, ds.cwd) }

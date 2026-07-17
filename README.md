@@ -26,6 +26,18 @@ bash scripts/install.sh
 写入 Cursor `~/.cursor/mcp.json`、Codex `~/.codex/config.toml` 与 `~/.mcp-guardian/`。  
 仅一边：`bash scripts/install.sh --cursor` 或 `--codex`。
 
+### 真实下游（官方 Filesystem MCP）
+
+默认安装是演示下游。接真实磁盘目录：
+
+```bash
+pnpm build
+node packages/gateway/dist/cli.js install --cursor --profile filesystem --workspace /ABS/PATH/TO/DIR
+# Reload MCP 后：读放行；写/改/移 → 会话内 confirm_code + guardian_decide
+```
+
+切回演示：`--profile demos`。示例配置：[`examples/real-filesystem.config.yaml`](examples/real-filesystem.config.yaml)。
+
 ## Agent 会话内审批
 
 当策略为 `require_approval` 时，工具结果包含：
@@ -36,7 +48,7 @@ bash scripts/install.sh
 同 MCP 还暴露：
 
 - `guardian_pending` — 查看待批  
-- `guardian_decide` — `{ id, decision: "allow" | "deny" }`；allow 时才真正执行原工具  
+- `guardian_decide` — `{ id, decision: "allow" | "deny", confirm_code? }`；allow 须带码
 
 ## Web（说明书）
 
@@ -50,6 +62,8 @@ pnpm dev:web   # http://127.0.0.1:3040  → /  /faq  /demo
 pnpm install && pnpm build
 pnpm lint && pnpm typecheck && pnpm test
 bash scenarios/a1-a8.sh
+bash scenarios/ide-smoke.sh
+bash scenarios/real-filesystem.sh
 ```
 
 ## License

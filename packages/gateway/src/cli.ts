@@ -10,15 +10,16 @@ function usage(): never {
   console.error(`Usage:
   ${PACKAGE_NAME} eval --policy <file> --server <name> --tool <name> [--args <json>]
   ${PACKAGE_NAME} start --config <file>
-  ${PACKAGE_NAME} install [--cursor] [--codex] [--all]
+  ${PACKAGE_NAME} install [--cursor] [--codex] [--all] [--profile demos|filesystem] [--workspace <dir>]
   ${PACKAGE_NAME} audits list [--limit N]
   ${PACKAGE_NAME} audits show <id>
   ${PACKAGE_NAME} approvals list
   ${PACKAGE_NAME} approvals decide <id> --allow|--deny
 
 Notes:
-  install  一键写入 Cursor/Codex MCP 配置（先 pnpm build）
-  高危审批：在 Agent 对话里确认后由 Agent 调用 guardian_decide（非外置 CLI）
+  install              默认 profile=demos（三演示下游）
+  --profile filesystem 官方 Filesystem MCP；建议加 --workspace <绝对目录>
+  高危/写入审批：Agent 对话内 guardian_decide（allow 须带 confirm_code）
 `);
   process.exit(2);
 }
@@ -54,12 +55,20 @@ async function main(): Promise<void> {
     const all = rest.includes("--all");
     const cursor = all || rest.includes("--cursor");
     const codex = all || rest.includes("--codex");
-    // 无参数时默认 Cursor + Codex，真正一键
     const targets =
       !cursor && !codex
         ? { cursor: true, codex: true }
         : { cursor, codex };
-    const result = installClients(targets);
+    const profileRaw = flag(rest, "--profile") ?? "demos";
+    if (profileRaw !== "demos" && profileRaw !== "filesystem") {
+      console.error("--profile 仅支持 demos | filesystem");
+      process.exit(2);
+    }
+    const workspace = flag(rest, "--workspace");
+    const result = installClients(targets, {
+      profile: profileRaw,
+      ...(workspace ? { workspace } : {}),
+    });
     for (const m of result.messages) console.log(m);
     return;
   }

@@ -1,0 +1,103 @@
+version: 1
+mode: fail_closed
+pre_redact: false
+defaults:
+  approval_ttl_seconds: 300
+  risk_threshold_for_approval: 70
+rules:
+  # 系统路径写：先于 require_approval（first-match）
+  - id: deny-fs-system-write
+    when:
+      server: filesystem
+      tool: write_file
+      args:
+        path: { matches: "^/(etc|var|usr|System|Windows)/" }
+    action: deny
+    risk: 95
+    reason: "拒绝写入系统目录"
+
+  # 读类放行（根目录由官方 filesystem MCP 自身限制）
+  - id: allow-fs-read-text
+    when: { server: filesystem, tool: read_text_file }
+    action: allow
+    risk: 10
+    reason: "允许读文本文件"
+
+  - id: allow-fs-read-file
+    when: { server: filesystem, tool: read_file }
+    action: allow
+    risk: 10
+    reason: "允许 read_file"
+
+  - id: allow-fs-read-media
+    when: { server: filesystem, tool: read_media_file }
+    action: allow
+    risk: 10
+    reason: "允许读媒体元数据"
+
+  - id: allow-fs-read-multiple
+    when: { server: filesystem, tool: read_multiple_files }
+    action: allow
+    risk: 15
+    reason: "允许批量读"
+
+  - id: allow-fs-list
+    when: { server: filesystem, tool: list_directory }
+    action: allow
+    risk: 10
+    reason: "允许列目录"
+
+  - id: allow-fs-list-sizes
+    when: { server: filesystem, tool: list_directory_with_sizes }
+    action: allow
+    risk: 10
+    reason: "允许列目录(含大小)"
+
+  - id: allow-fs-tree
+    when: { server: filesystem, tool: directory_tree }
+    action: allow
+    risk: 15
+    reason: "允许目录树"
+
+  - id: allow-fs-search
+    when: { server: filesystem, tool: search_files }
+    action: allow
+    risk: 20
+    reason: "允许搜索文件"
+
+  - id: allow-fs-info
+    when: { server: filesystem, tool: get_file_info }
+    action: allow
+    risk: 10
+    reason: "允许文件信息"
+
+  - id: allow-fs-allowed-dirs
+    when: { server: filesystem, tool: list_allowed_directories }
+    action: allow
+    risk: 5
+    reason: "允许查看授权根目录"
+
+  # 变更类：会话内审批
+  - id: approve-fs-write
+    when: { server: filesystem, tool: write_file }
+    action: require_approval
+    risk: 80
+    reason: "写入文件需要批准"
+
+  - id: approve-fs-edit
+    when: { server: filesystem, tool: edit_file }
+    action: require_approval
+    risk: 80
+    reason: "编辑文件需要批准"
+
+  - id: approve-fs-move
+    when: { server: filesystem, tool: move_file }
+    action: require_approval
+    risk: 75
+    reason: "移动/重命名需要批准"
+
+  - id: approve-fs-mkdir
+    when: { server: filesystem, tool: create_directory }
+    action: require_approval
+    risk: 70
+    reason: "创建目录需要批准"

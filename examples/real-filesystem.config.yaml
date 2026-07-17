@@ -1,0 +1,16 @@
+# 真实下游示例：官方 Filesystem MCP（单下游，工具名不带 server__ 前缀）
+#
+# 生成方式（推荐）：
+#   pnpm build
+#   node packages/gateway/dist/cli.js install --cursor --profile filesystem --workspace /ABS/PATH/TO/DIR
+#
+# 或手工复制到 ~/.mcp-guardian/mcp-guardian.config.yaml 后改绝对路径。
+
+policyFile: "../policies/filesystem.fail-closed.yaml"
+downstreams:
+  - name: filesystem
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "/ABS/PATH/TO/YOUR/WORKSPACE"
