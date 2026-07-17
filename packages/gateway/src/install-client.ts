@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 const SERVER_KEY = "mcp-guardian";
 
+export type InstallProfile = "demos" | "filesystem";
+
 /** 从 gateway dist|src 下的本文件定位 monorepo 根目录（上三级） */
 export function detectRepoRoot(fromFile = fileURLToPath(import.meta.url)): string {
   return path.resolve(path.dirname(fromFile), "../../..");
@@ -16,12 +18,13 @@ export function guardianHome(): string {
   return dir;
 }
 
-/**
- * 写出用户级 config（绝对路径）。
- * 默认挂上 demo-fs / demo-shell / demo-http，IDE 才能验 allow/deny/redact/审批。
- */
-export function writeUserConfig(repoRoot: string): string {
-  const home = guardianHome();
+export type WriteUserConfigOptions = {
+  profile?: InstallProfile;
+  /** filesystem 画像的授权根目录（绝对路径） */
+  workspace?: string;
+};
+
+function writeDemosConfig(repoRoot: string, configPath: string): void {
   const policy = path.join(repoRoot, "policies/default.fail-closed.yaml");
   const demoFs = path.join(repoRoot, "packages/demo-servers/dist/fs.js");
   const demoShell = path.join(repoRoot, "packages/demo-servers/dist/shell-bin.js");
@@ -32,8 +35,6 @@ export function writeUserConfig(repoRoot: string): string {
       throw new Error(`缺少构建产物: ${p}（请先在仓库根执行 pnpm build）`);
     }
   }
-  const configPath = path.join(home, "mcp-guardian.config.yaml");
-  // 多下游时工具名会暴露为 server__tool；策略仍按 server/tool 匹配
   const yaml = `policyFile: ${JSON.stringify(policy)}
 downstreams:
   - name: demo-fs
@@ -50,6 +51,56 @@ downstreams:
       - ${JSON.stringify(demoHttp)}
 `;
   fs.writeFileSync(configPath, yaml, "utf8");
+}
+
+function writeFilesystemConfig(
+  repoRoot: string,
+  configPath: string,
+  workspaceRaw: string,
+): void {
+  const policy = path.join(repoRoot, "policies/filesystem.fail-closed.yaml");
+  const cli = path.join(repoRoot, "packages/gateway/dist/cli.js");
+  const workspace = path.resolve(workspaceRaw);
+  if (!fs.existsSync(policy) || !fs.existsSync(cli)) {
+    throw new Error(`缺少构建产物或策略: ${policy} / ${cli}`);
+  }
+  if (!fs.existsSync(workspace) || !fs.statSync(workspace).isDirectory()) {
+    throw new Error(`--workspace 必须是已存在的目录: ${workspace}`);
+  }
+  // 单下游：暴露原工具名；npx 拉官方 server-filesystem
+  const yaml = `policyFile: ${JSON.stringify(policy)}
+downstreams:
+  - name: filesystem
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - ${JSON.stringify(workspace)}
+`;
+  fs.writeFileSync(configPath, yaml, "utf8");
+}
+
+/**
+ * 写出用户级 config（绝对路径）。
+ * demos：三演示下游；filesystem：官方 Filesystem MCP（真实下游里程碑）。
+ */
+export function writeUserConfig(
+  repoRoot: string,
+  options: WriteUserConfigOptions = {},
+): string {
+  const profile = options.profile ?? "demos";
+  const home = guardianHome();
+  const configPath = path.join(home, "mcp-guardian.config.yaml");
+  if (profile === "filesystem") {
+    if (!options.workspace || !String(options.workspace).trim()) {
+      throw new Error(
+        "profile=filesystem 必须指定 --workspace <已存在的绝对目录>（禁止默认 cwd，避免误授权）",
+      );
+    }
+    writeFilesystemConfig(repoRoot, configPath, options.workspace);
+  } else {
+    writeDemosConfig(repoRoot, configPath);
+  }
   return configPath;
 }
 
@@ -58,6 +109,7 @@ export type InstallTargets = { cursor: boolean; codex: boolean };
 export type InstallResult = {
   configPath: string;
   cliPath: string;
+  profile: InstallProfile;
   cursorPath?: string;
   codexPath?: string;
   messages: string[];
@@ -83,7 +135,6 @@ function mergeCursorMcp(cliPath: string, configPath: string): string {
     command: "node",
     args: [cliPath, "start", "--config", configPath],
   };
-  // 备份再写，避免弄坏用户其它 MCP
   if (fs.existsSync(file)) {
     fs.copyFileSync(file, `${file}.bak-mcp-guardian`);
   }
@@ -123,35 +174,56 @@ args = [
   return file;
 }
 
+export type InstallClientsOptions = WriteUserConfigOptions & {
+  repoRoot?: string;
+};
+
 /**
  * 一键接入 Cursor / Codex：写用户配置并合并 MCP 客户端配置。
  */
 export function installClients(
   targets: InstallTargets,
-  repoRoot = detectRepoRoot(),
+  options: InstallClientsOptions = {},
 ): InstallResult {
   if (!targets.cursor && !targets.codex) {
     throw new Error("请至少指定 --cursor 或 --codex");
   }
-  const configPath = writeUserConfig(repoRoot);
+  const repoRoot = options.repoRoot ?? detectRepoRoot();
+  const profile = options.profile ?? "demos";
+  const configPath = writeUserConfig(repoRoot, {
+    profile,
+    ...(options.workspace ? { workspace: options.workspace } : {}),
+  });
   const cliPath = path.join(repoRoot, "packages/gateway/dist/cli.js");
   const messages: string[] = [
     `用户配置: ${configPath}`,
-    "主路径：Cursor/Codex 里用 Agent；高危时 Agent 会问你，再调 guardian_decide（需 confirm_code）。",
-    "默认下游：demo-fs / demo-shell / demo-http（多下游时工具名为 server__tool）。",
+    `画像: ${profile}`,
+    "主路径：Cursor/Codex 里用 Agent；变更类操作会要 confirm_code + guardian_decide。",
     "Web 仅介绍/FAQ，不是审批台。",
   ];
-  const result: InstallResult = { configPath, cliPath, messages };
+  if (profile === "demos") {
+    messages.push(
+      "下游：demo-fs / demo-shell / demo-http（多下游时工具名为 server__tool）。",
+    );
+  } else {
+    const ws = path.resolve(options.workspace!);
+    messages.push(`生效 workspace（官方 Filesystem 授权根）: ${ws}`);
+    messages.push(
+      "下游：官方 @modelcontextprotocol/server-filesystem（单下游，工具名无前缀）。",
+    );
+    messages.push(
+      "切回演示：node packages/gateway/dist/cli.js install --cursor --profile demos",
+    );
+  }
+  const result: InstallResult = { configPath, cliPath, profile, messages };
 
   if (targets.cursor) {
     result.cursorPath = mergeCursorMcp(cliPath, configPath);
     messages.push(`已写入 Cursor MCP: ${result.cursorPath}（备份 .bak-mcp-guardian）`);
-    messages.push("请重启 Cursor 或 Reload MCP，列表中应出现 mcp-guardian。");
   }
   if (targets.codex) {
     result.codexPath = mergeCodexToml(cliPath, configPath);
     messages.push(`已写入 Codex: ${result.codexPath}（备份 .bak-mcp-guardian）`);
-    messages.push("请重启 Codex / 新开会话后使用 mcp-guardian。");
   }
   return result;
 }

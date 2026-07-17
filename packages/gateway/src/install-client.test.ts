@@ -40,6 +40,33 @@ describe("install-client", () => {
     expect(text).toContain("demo-http");
   });
 
+  it("writes filesystem profile with official server package name intact", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "mg-home-"));
+    const ws = fs.mkdtempSync(path.join(os.tmpdir(), "mg-ws-"));
+    tmpDirs.push(home, ws);
+    process.env.MCP_GUARDIAN_HOME = home;
+    const root = detectRepoRoot();
+    const configPath = writeUserConfig(root, {
+      profile: "filesystem",
+      workspace: ws,
+    });
+    const text = fs.readFileSync(configPath, "utf8");
+    expect(text).toContain("@modelcontextprotocol/server-filesystem");
+    expect(text).toContain(path.join(root, "policies/filesystem.fail-closed.yaml"));
+    expect(text).toContain(ws);
+    // 回归：scoped 包名不得被 resolve 成 home 下假路径
+    expect(text).not.toContain(path.join(home, "@modelcontextprotocol"));
+  });
+
+  it("filesystem profile rejects missing workspace", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "mg-home-"));
+    tmpDirs.push(home);
+    process.env.MCP_GUARDIAN_HOME = home;
+    expect(() =>
+      writeUserConfig(detectRepoRoot(), { profile: "filesystem" }),
+    ).toThrow(/--workspace/);
+  });
+
   it("merges Cursor mcp.json without dropping other servers", () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "mg-home-"));
     const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), "mg-user-"));

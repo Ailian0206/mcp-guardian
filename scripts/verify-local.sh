@@ -35,6 +35,7 @@ pnpm typecheck && ok typecheck || bad typecheck
 pnpm test && ok test || bad test
 bash scenarios/a1-a8.sh && ok a1-a8 || bad a1-a8
 bash scenarios/ide-smoke.sh && ok ide-smoke || bad ide-smoke
+bash scenarios/real-filesystem.sh && ok real-filesystem || bad real-filesystem
 CI=1 pnpm --filter @mcp-guardian/web exec playwright test && ok e2e || bad e2e
 
 echo "=== install artifacts ==="

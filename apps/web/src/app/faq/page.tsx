@@ -23,7 +23,11 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: "默认演示有哪些工具？",
-    a: "安装后下游含 demo-fs / demo-shell / demo-http。多下游时工具名是 server__tool（如 demo-shell__run）。接真实 MCP 改 ~/.mcp-guardian/mcp-guardian.config.yaml。",
+    a: "默认 profile=demos：demo-fs / demo-shell / demo-http。多下游时工具名是 server__tool。",
+  },
+  {
+    q: "怎么接真实下游（例如官方 Filesystem MCP）？",
+    a: "pnpm build 后执行：node packages/gateway/dist/cli.js install --cursor --profile filesystem --workspace /你的目录。策略用 policies/filesystem.fail-closed.yaml：读放行，写/改/移需会话内批准。示例见 examples/real-filesystem.config.yaml。切回演示加 --profile demos。",
   },
 ];
 
