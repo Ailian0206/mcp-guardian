@@ -55,6 +55,7 @@ export class AuditStore {
     latencyMs: number;
     resultStatus: string;
   }): void {
+    // 同一 call id 会先记 pending_approval，再记 approved/denied — 用 upsert 更新终态
     this.db
       .prepare(
         `INSERT INTO audit_events (
@@ -63,7 +64,16 @@ export class AuditStore {
         ) VALUES (
           @id, @ts, @server, @tool, @action, @matched_rule_id, @risk, @latency_ms,
           @args_redacted_json, @result_status, @reasons_json
-        )`,
+        )
+        ON CONFLICT(id) DO UPDATE SET
+          ts = excluded.ts,
+          latency_ms = excluded.latency_ms,
+          result_status = excluded.result_status,
+          args_redacted_json = excluded.args_redacted_json,
+          reasons_json = excluded.reasons_json,
+          action = excluded.action,
+          matched_rule_id = excluded.matched_rule_id,
+          risk = excluded.risk`,
       )
       .run({
         id: input.id,

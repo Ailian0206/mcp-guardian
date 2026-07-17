@@ -16,24 +16,38 @@ export function guardianHome(): string {
   return dir;
 }
 
-/** 写出用户级 config（绝对路径），避免 MCP 客户端 cwd 不对导致下游找不到 */
+/**
+ * 写出用户级 config（绝对路径）。
+ * 默认挂上 demo-fs / demo-shell / demo-http，IDE 才能验 allow/deny/redact/审批。
+ */
 export function writeUserConfig(repoRoot: string): string {
   const home = guardianHome();
   const policy = path.join(repoRoot, "policies/default.fail-closed.yaml");
   const demoFs = path.join(repoRoot, "packages/demo-servers/dist/fs.js");
+  const demoShell = path.join(repoRoot, "packages/demo-servers/dist/shell-bin.js");
+  const demoHttp = path.join(repoRoot, "packages/demo-servers/dist/http-bin.js");
   const cli = path.join(repoRoot, "packages/gateway/dist/cli.js");
-  for (const p of [policy, demoFs, cli]) {
+  for (const p of [policy, demoFs, demoShell, demoHttp, cli]) {
     if (!fs.existsSync(p)) {
       throw new Error(`缺少构建产物: ${p}（请先在仓库根执行 pnpm build）`);
     }
   }
   const configPath = path.join(home, "mcp-guardian.config.yaml");
+  // 多下游时工具名会暴露为 server__tool；策略仍按 server/tool 匹配
   const yaml = `policyFile: ${JSON.stringify(policy)}
 downstreams:
   - name: demo-fs
     command: node
     args:
       - ${JSON.stringify(demoFs)}
+  - name: demo-shell
+    command: node
+    args:
+      - ${JSON.stringify(demoShell)}
+  - name: demo-http
+    command: node
+    args:
+      - ${JSON.stringify(demoHttp)}
 `;
   fs.writeFileSync(configPath, yaml, "utf8");
   return configPath;
@@ -111,7 +125,6 @@ args = [
 
 /**
  * 一键接入 Cursor / Codex：写用户配置并合并 MCP 客户端配置。
- * 审批默认走 CLI（pnpm guardian approvals），Web 可选。
  */
 export function installClients(
   targets: InstallTargets,
@@ -124,7 +137,8 @@ export function installClients(
   const cliPath = path.join(repoRoot, "packages/gateway/dist/cli.js");
   const messages: string[] = [
     `用户配置: ${configPath}`,
-    "主路径：Cursor/Codex 里用 Agent；高危时 Agent 会问你，再调 guardian_decide。",
+    "主路径：Cursor/Codex 里用 Agent；高危时 Agent 会问你，再调 guardian_decide（需 confirm_code）。",
+    "默认下游：demo-fs / demo-shell / demo-http（多下游时工具名为 server__tool）。",
     "Web 仅介绍/FAQ，不是审批台。",
   ];
   const result: InstallResult = { configPath, cliPath, messages };

@@ -34,6 +34,10 @@ describe("install-client", () => {
     const text = fs.readFileSync(configPath, "utf8");
     expect(text).toContain(path.join(root, "policies/default.fail-closed.yaml"));
     expect(text).toContain(path.join(root, "packages/demo-servers/dist/fs.js"));
+    expect(text).toContain(path.join(root, "packages/demo-servers/dist/shell-bin.js"));
+    expect(text).toContain(path.join(root, "packages/demo-servers/dist/http-bin.js"));
+    expect(text).toContain("demo-shell");
+    expect(text).toContain("demo-http");
   });
 
   it("merges Cursor mcp.json without dropping other servers", () => {

@@ -34,6 +34,7 @@ pnpm lint && ok lint || bad lint
 pnpm typecheck && ok typecheck || bad typecheck
 pnpm test && ok test || bad test
 bash scenarios/a1-a8.sh && ok a1-a8 || bad a1-a8
+bash scenarios/ide-smoke.sh && ok ide-smoke || bad ide-smoke
 CI=1 pnpm --filter @mcp-guardian/web exec playwright test && ok e2e || bad e2e
 
 echo "=== install artifacts ==="
@@ -42,6 +43,8 @@ test -f packages/gateway/dist/pending-cache.js && ok pending-cache.js || bad pen
 test -f "$HOME/.mcp-guardian/mcp-guardian.config.yaml" && ok user-config || bad user-config
 node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync(process.env.HOME+'/.cursor/mcp.json','utf8')); if(!d.mcpServers['mcp-guardian']) process.exit(1)" && ok cursor-entry || bad cursor-entry
 node packages/gateway/dist/cli.js install --cursor >/tmp/mg-inst.txt && ok reinstall-cursor || bad reinstall-cursor
+grep -q demo-shell "$HOME/.mcp-guardian/mcp-guardian.config.yaml" && ok config-shell || bad config-shell
+grep -q demo-http "$HOME/.mcp-guardian/mcp-guardian.config.yaml" && ok config-http || bad config-http
 
 echo "=== FAIL_COUNT=$FAIL ==="
 if [[ "$FAIL" -ne 0 ]]; then
