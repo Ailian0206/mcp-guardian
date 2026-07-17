@@ -1,39 +1,32 @@
 ---
-description: PR 门禁：Claude /pr-review 只审一次；修完直接 merge；PR 仅里程碑
+description: PR 成本红线：里程碑才开 PR；Claude 每 PR 只审一次；禁止并发/复审
 alwaysApply: true
 ---
 
-# PR 审核与合并门禁
-
-Cursor Bugbot 额度不可用期间，本仓库使用独立 Claude Code `pr-review` skill。
+# PR 审核与合并门禁（成本优先）
 
 ## 开 PR 红线
 
 - **同时最多 1 个开放 PR**。
-- **只在有里程碑意义时开 PR**（整周/大切片验收完成）；禁止按天、按小任务、纯文档单独开 PR。
-- 日常小步 commit 可 push 到功能分支备份，但不开第二个 PR。
+- **只有里程碑才开 PR**；禁止没事提 PR、按天/小修/纯文档开 PR。
+- 开 PR 前必须：`bash scripts/assert-can-open-pr.sh`（里程碑确认后用 `ALLOW_OPEN_PR=1`）。
+- 日常在功能分支 commit/push，**默认不开 PR**。
+- **只负责本仓库 `mcp-guardian`**；禁止去其他仓库开 PR / 跑审核。
 
-## Claude 审核：只审一次
+## Claude：每个 PR 生涯只审一次
 
-1. 开出（或里程碑 PR 首次就绪）后触发一次：
-
-   ```bash
-   claude --permission-mode auto --model sonnet -p "/pr-review"
-   ```
-
-2. 触及审核协议路径时，从准确 `baseRefOid` detached worktree 运行 `/pr-review --trusted-base <PR>`。
-
-3. **禁止复审**：Claude 评论后，开发 agent 按评论修复 → 本地门禁 + CI 绿 → **直接 merge**。不再跑第二次 `/pr-review`。
-
-4. Claude 无阻塞问题 → 本地 + CI 绿 → 直接 merge。
-
-5. 不得手工改 Claude 标签，不得冒充审核评论。
+1. 首次就绪后只触发一次：`bash scripts/pr-gate.sh <PR>`（内部调用 `/pr-review`）。
+2. 已有 `CLAUDE_REVIEWED_SHA` / `claude-reviewed` / `claude-changes-requested` → **禁止再启动 Claude**。
+3. 有问题：按评论修 → `SKIP_PR_REVIEW=1 bash scripts/pr-gate.sh <PR>` → merge。
+4. 没问题：同一次 gate 门禁绿后 merge。
+5. **禁止并发**跑多个 pr-gate / `/pr-review`（脚本有 flock）。
+6. 不得手改审核标签、冒充审核评论；**不用 Bugbot**。
 
 ## 合并
 
 ```bash
-bash scripts/pr-gate.sh <PR>                 # 首次：触发一次审核后合并（有 changes-requested 会 exit 2）
-SKIP_PR_REVIEW=1 bash scripts/pr-gate.sh <PR>  # 已按评论修好：跳过审核，门禁绿后合并
+bash scripts/pr-gate.sh <PR>                      # 未审过：唯一一次 Claude + 合
+SKIP_PR_REVIEW=1 bash scripts/pr-gate.sh <PR>     # 已按评论修好：绝不复审
 ```
 
-合并方式：merge commit；禁止 squash / rebase / force push。
+merge commit only。
