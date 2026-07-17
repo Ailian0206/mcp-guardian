@@ -62,13 +62,21 @@ Agent：正常 tools/call
 - 企业多租户、SOC2、SIEM
 - 通用 Prompt 防火墙、Trace 平台
 - 把 Guardian 耦进 Evidence Graph 运行时
-- 频繁小 PR；仅里程碑整包更新现有 PR #9
+- 频繁小 PR；仅里程碑整包更新现有 PR
 
-## 7. 与旧方案差异（诚实）
+## 7. 审批威胁模型（诚实）
+
+会话内 `guardian_decide` **不是**与 Agent 密码学隔离的独立信道。强制点：
+
+1. **allow 必须带 `confirm_code`**（与 `approval_required` 一致），否则拒绝。  
+2. **外层人在环**：Cursor/Codex 对 MCP 工具调用的确认 UI——用户可拒绝 `guardian_decide`。  
+3. 全自动、无视工具确认、且会读 pending payload 的 Agent，仍可能自批；本期接受该残差，换「装上就能在对话里批」的主路径。不恢复阻塞式 Web/CLI 审批为主路径。
+
+## 8. 与旧方案差异（诚实）
 
 | 旧 | 新 |
 | --- | --- |
 | Gateway + Web 双主 | Gateway 唯一运行时主路径 |
-| 审批：CLI 或 Web 阻塞等待 | 审批：Agent 会话内 `guardian_decide` |
+| 审批：CLI 或 Web 阻塞等待 | 审批：Agent 会话内 `guardian_decide` + confirm_code |
 | 成功看 Dashboard | 成功看「装上就能在 IDE 里用」 |
 | Web = 产品 | Web = 说明书 + FAQ + 作品集门面 |

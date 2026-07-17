@@ -27,10 +27,13 @@ echo "$REDACT" | grep -q '\*\*\*REDACTED\*\*\*'
 APR="$("${CLI[@]}" eval --policy "$POLICY" --server demo-shell --tool run --args '{"command":"rm -rf /tmp/x"}')"
 echo "$APR" | grep -q '"action": "require_approval"'
 
-# A5：会话内审批契约 — pending payload 必须指导 Agent 调 guardian_decide
+# A5：会话内审批契约 — pending 含 confirm_code；allow 必须码一致
 node --input-type=module -e "
-import { pendingApprovalPayload } from './packages/gateway/dist/pending-cache.js';
-const text = pendingApprovalPayload({
+import {
+  confirmCodeOk,
+  pendingApprovalPayload,
+} from './packages/gateway/dist/pending-cache.js';
+const call = {
   id: 'scenario-a5',
   server: 'demo-shell',
   tool: 'run',
@@ -44,8 +47,13 @@ const text = pendingApprovalPayload({
     mode: 'fail_closed',
   },
   createdAt: new Date().toISOString(),
-}, 300);
-if (!text.includes('guardian_decide') || !text.includes('approval_required')) {
+  confirmCode: 'deadbe',
+};
+const text = pendingApprovalPayload(call, 300);
+if (!text.includes('guardian_decide') || !text.includes('approval_required') || !text.includes('confirm_code')) {
+  process.exit(1);
+}
+if (!confirmCodeOk(call, 'allow', 'deadbe') || confirmCodeOk(call, 'allow', 'nope')) {
   process.exit(1);
 }
 "

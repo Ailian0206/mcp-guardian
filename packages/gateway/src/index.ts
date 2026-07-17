@@ -20,6 +20,8 @@ import {
 } from "./config.js";
 import {
   PendingCallCache,
+  confirmCodeOk,
+  newConfirmCode,
   pendingApprovalPayload,
 } from "./pending-cache.js";
 
@@ -159,13 +161,17 @@ export async function startProxy(options: {
       {
         name: META_DECIDE,
         description:
-          "After the human approves/denies in chat, resume a pending tool call. decision=allow|deny.",
+          "After the human approves/denies in chat, resume a pending tool call. allow requires confirm_code from the approval_required payload.",
         inputSchema: {
           type: "object",
           required: ["id", "decision"],
           properties: {
             id: { type: "string", description: "approval_id from approval_required" },
             decision: { type: "string", enum: ["allow", "deny"] },
+            confirm_code: {
+              type: "string",
+              description: "Required when decision=allow; must match approval_required.confirm_code",
+            },
           },
           additionalProperties: false,
         },
@@ -203,6 +209,24 @@ export async function startProxy(options: {
         );
       }
       const allow = decisionRaw === "allow";
+      const confirmCode =
+        typeof args.confirm_code === "string" ? args.confirm_code : undefined;
+
+      // 先校验内存上下文与确认码，再写 approvals 状态，避免错码把 pending 打成 approved
+      const callPeek = pending.get(id);
+      if (!callPeek) {
+        return policyError(
+          ErrorCodes.DOWNSTREAM_ERROR,
+          "pending context missing (gateway restarted?). Re-invoke the original tool.",
+        );
+      }
+      if (!confirmCodeOk(callPeek, allow ? "allow" : "deny", confirmCode)) {
+        return policyError(
+          ErrorCodes.APPROVAL_DENIED,
+          "confirm_code mismatch: ask the human for the code from approval_required, then retry allow",
+        );
+      }
+
       const row = approvals.decide(id, allow);
       if (!row || (row.status !== "approved" && row.status !== "denied")) {
         return policyError(
@@ -237,7 +261,7 @@ export async function startProxy(options: {
       if (!call) {
         return policyError(
           ErrorCodes.DOWNSTREAM_ERROR,
-          "pending context missing (gateway restarted?). Re-invoke the original tool.",
+          "pending context missing after decide",
         );
       }
       const route = findRoute(call.server, call.tool);
@@ -324,6 +348,7 @@ export async function startProxy(options: {
         forwardArgs: decision.redacted_args,
         decision,
         createdAt: new Date().toISOString(),
+        confirmCode: newConfirmCode(),
       };
       pending.put(call);
       audit.append({
@@ -334,8 +359,9 @@ export async function startProxy(options: {
         latencyMs: Date.now() - started,
         resultStatus: "pending_approval",
       });
+      // stderr 便于本机对照；IDE 侧靠 MCP 工具确认 UI 作为外层人在环
       console.error(
-        `[mcp-guardian] approval_required id=${callId} — agent must ask user then call guardian_decide`,
+        `[mcp-guardian] approval_required id=${callId} confirm_code=${call.confirmCode} — ask user, then guardian_decide`,
       );
       // 非错误返回：让 Agent 能解析并继续对话问用户
       return textResult(pendingApprovalPayload(call, ttl), false);

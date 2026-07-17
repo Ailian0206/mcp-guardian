@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Decision } from "@mcp-guardian/shared";
 
 /** 待批调用的可重放上下文（批准后才真正打下游） */
@@ -8,6 +9,8 @@ export type PendingCall = {
   forwardArgs: Record<string, unknown>;
   decision: Decision;
   createdAt: string;
+  /** 人类确认码：allow 时 guardian_decide 必须带上；降低 Agent 静默自批 */
+  confirmCode: string;
 };
 
 export class PendingCallCache {
@@ -32,12 +35,28 @@ export class PendingCallCache {
   }
 }
 
+/** 生成短确认码（人类可读、Agent 须向用户索取后再提交） */
+export function newConfirmCode(): string {
+  return randomBytes(3).toString("hex");
+}
+
+/** allow 必须校验确认码；deny 不要求（拒绝不应被码挡住） */
+export function confirmCodeOk(
+  call: PendingCall,
+  decision: "allow" | "deny",
+  provided: string | undefined,
+): boolean {
+  if (decision === "deny") return true;
+  return Boolean(provided) && provided === call.confirmCode;
+}
+
 /** 返回给 Agent 的待批说明：引导其在对话里问用户，再调 guardian_decide */
 export function pendingApprovalPayload(call: PendingCall, ttlSeconds: number): string {
   return JSON.stringify(
     {
       status: "approval_required",
       approval_id: call.id,
+      confirm_code: call.confirmCode,
       server: call.server,
       tool: call.tool,
       risk: call.decision.risk,
@@ -46,9 +65,10 @@ export function pendingApprovalPayload(call: PendingCall, ttlSeconds: number): s
       ttl_seconds: ttlSeconds,
       agent_instructions: [
         "Do NOT claim the tool already ran.",
-        "Ask the human user in this chat whether to allow or deny this call.",
-        "If they approve, call tool guardian_decide with { id, decision: \"allow\" }.",
-        "If they refuse, call tool guardian_decide with { id, decision: \"deny\" }.",
+        "Do NOT call guardian_decide allow until the human explicitly confirms in this chat.",
+        `Show the human confirm_code=${call.confirmCode} and ask them to approve or deny.`,
+        "If they approve, call guardian_decide with { id, decision: \"allow\", confirm_code } using the same code.",
+        "If they refuse, call guardian_decide with { id, decision: \"deny\" } (confirm_code optional).",
       ],
     },
     null,
