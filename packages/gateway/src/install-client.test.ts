@@ -58,6 +58,15 @@ describe("install-client", () => {
     expect(text).not.toContain(path.join(home, "@modelcontextprotocol"));
   });
 
+  it("filesystem profile rejects missing workspace", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "mg-home-"));
+    tmpDirs.push(home);
+    process.env.MCP_GUARDIAN_HOME = home;
+    expect(() =>
+      writeUserConfig(detectRepoRoot(), { profile: "filesystem" }),
+    ).toThrow(/--workspace/);
+  });
+
   it("merges Cursor mcp.json without dropping other servers", () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "mg-home-"));
     const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), "mg-user-"));

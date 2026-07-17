@@ -92,8 +92,12 @@ export function writeUserConfig(
   const home = guardianHome();
   const configPath = path.join(home, "mcp-guardian.config.yaml");
   if (profile === "filesystem") {
-    const ws = options.workspace ?? process.cwd();
-    writeFilesystemConfig(repoRoot, configPath, ws);
+    if (!options.workspace || !String(options.workspace).trim()) {
+      throw new Error(
+        "profile=filesystem 必须指定 --workspace <已存在的绝对目录>（禁止默认 cwd，避免误授权）",
+      );
+    }
+    writeFilesystemConfig(repoRoot, configPath, options.workspace);
   } else {
     writeDemosConfig(repoRoot, configPath);
   }
@@ -202,6 +206,8 @@ export function installClients(
       "下游：demo-fs / demo-shell / demo-http（多下游时工具名为 server__tool）。",
     );
   } else {
+    const ws = path.resolve(options.workspace!);
+    messages.push(`生效 workspace（官方 Filesystem 授权根）: ${ws}`);
     messages.push(
       "下游：官方 @modelcontextprotocol/server-filesystem（单下游，工具名无前缀）。",
     );

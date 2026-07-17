@@ -18,7 +18,7 @@ function usage(): never {
 
 Notes:
   install              默认 profile=demos（三演示下游）
-  --profile filesystem 官方 Filesystem MCP；建议加 --workspace <绝对目录>
+  --profile filesystem 必须同时 --workspace <已存在目录>（禁止默认 cwd）
   高危/写入审批：Agent 对话内 guardian_decide（allow 须带 confirm_code）
 `);
   process.exit(2);
@@ -65,6 +65,10 @@ async function main(): Promise<void> {
       process.exit(2);
     }
     const workspace = flag(rest, "--workspace");
+    if (profileRaw === "filesystem" && !workspace) {
+      console.error("profile=filesystem 必须提供 --workspace <已存在目录>");
+      process.exit(2);
+    }
     const result = installClients(targets, {
       profile: profileRaw,
       ...(workspace ? { workspace } : {}),
