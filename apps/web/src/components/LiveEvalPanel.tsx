@@ -53,9 +53,9 @@ export function LiveEvalPanel() {
       result.checks?.secret_not_in_redacted_args !== false);
 
   return (
-    <section style={{ marginTop: 32 }}>
+    <section style={{ marginTop: 40 }}>
       <h2 style={{ fontSize: 20, marginBottom: 8 }}>现场试跑策略（真引擎）</h2>
-      <p style={{ color: "#4d647f", marginBottom: 16 }}>
+      <p style={{ color: "var(--muted)", marginBottom: 16, lineHeight: 1.6 }}>
         点下面按钮会调用本机 <code>/api/demo/eval</code>，用仓库默认 fail-closed
         策略即时评估——不是写死的假数据。
       </p>
@@ -68,11 +68,14 @@ export function LiveEvalPanel() {
             onClick={() => void run(p.key)}
             style={{
               padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid #16324f",
-              background: loading === p.key ? "#c5d4e6" : "#16324f",
-              color: "#fff",
-              cursor: "pointer",
+              borderRadius: 2,
+              border: "1px solid var(--ink)",
+              background: loading === p.key ? "var(--bg-deep)" : "var(--ink)",
+              color: "#f7f5f0",
+              cursor: loading !== null ? "wait" : "pointer",
+              fontFamily: "var(--font-sans)",
+              fontWeight: 600,
+              fontSize: 13,
             }}
           >
             {loading === p.key ? "评估中…" : p.label}
@@ -81,17 +84,9 @@ export function LiveEvalPanel() {
       </div>
 
       {result ? (
-        <div
-          style={{
-            marginTop: 16,
-            background: "#0f1b2a",
-            color: "#e8eef7",
-            borderRadius: 12,
-            padding: 16,
-          }}
-        >
+        <div className="mg-code" style={{ marginTop: 16 }}>
           {result.error ? (
-            <p style={{ color: "#ff8a8a" }}>错误：{result.error}</p>
+            <p style={{ color: "#ff8a8a", margin: 0 }}>错误：{result.error}</p>
           ) : (
             <>
               <p style={{ marginTop: 0 }}>
@@ -100,8 +95,8 @@ export function LiveEvalPanel() {
                   <>
                     {" "}
                     · 期望 <code>{lastExpect}</code> ·{" "}
-                    <span style={{ color: pass ? "#7dffa0" : "#ffb4b4" }}>
-                      {pass ? "✓ 验收通过" : "✗ 与期望不符"}
+                    <span style={{ color: pass ? "#7dceb8" : "#ffb4b4" }}>
+                      {pass ? "验收通过" : "与期望不符"}
                     </span>
                   </>
                 ) : null}

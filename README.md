@@ -50,11 +50,15 @@ node packages/gateway/dist/cli.js install --cursor --profile filesystem --worksp
 - `guardian_pending` — 查看待批  
 - `guardian_decide` — `{ id, decision: "allow" | "deny", confirm_code? }`；allow 须带码
 
-## Web（说明书）
+## Web（说明书 / 作品集门面）
 
 ```bash
 pnpm dev:web   # http://127.0.0.1:3040  → /  /faq  /demo
 ```
+
+- `/`：价值、安装步骤、日常流程、真实下游、与 Trace 差异、FAQ 摘要、演示录屏  
+- `/faq`：入门 / 日常 / 真实下游 / 排错  
+- `/demo`：浏览器试跑策略 + 只读审计回放（**不是**审批台）
 
 ## 开发验收
 

@@ -1,24 +1,28 @@
-# Case Study：MCP Guardian（初稿）
+# Case Study：MCP Guardian
 
-> 日期：2026-07-16  
-> 状态：MVP 本地可演示；演示视频见 [`docs/assets/demo-walkthrough.webm`](./assets/demo-walkthrough.webm)
+> 日期：2026-07-17  
+> 状态：MVP + 真实下游（Filesystem）已合入；Web 为说明书 / 作品集门面  
+> 决策：[`product-redesign-2026-07-16.md`](./product-redesign-2026-07-16.md)  
+> 演示：[`assets/demo-walkthrough.webm`](./assets/demo-walkthrough.webm)
 
 ## 问题
 
-AI Agent 接上 MCP 后，工具调用往往 **先执行再观测**。Trace 平台（Langfuse / LangSmith）擅长事后复盘，但拦不住一次危险的 `rm -rf`、越权读 `/etc`、或把 API Key 打进 HTTP 参数。
+AI Agent 接上 MCP 后，工具调用往往 **先执行再观测**。Trace 平台（Langfuse / LangSmith）擅长事后复盘，但拦不住一次危险的 `rm -rf`、越权写系统路径、或把 API Key 打进 HTTP 参数。
 
 ## 方案
 
-MCP Guardian 是 **调用前** 的策略网关：
+MCP Guardian 是装进 **Cursor / Codex** 的本地 **调用前** 策略网关：
 
 | 决策 | 含义 |
 | --- | --- |
 | allow | 放行 |
 | deny | 硬拒绝 |
 | redact | 改写敏感参数后再放行 |
-| require_approval | 挂起，等人批 |
+| require_approval | 挂起；在 **同一次 Agent 对话** 里带 `confirm_code` 调 `guardian_decide` |
 
-默认 **fail-closed**：无规则命中一律 deny。本地 SQLite + 可选 Web Dashboard 同步审批与审计回放。
+默认 **fail-closed**：无规则命中一律 deny。审计写入本机 SQLite。
+
+**不做主路径：** 网页审批台、另开终端跑 `approvals decide`（CLI 仅调试保留）。
 
 ## 与 Trace 的边界
 
@@ -33,12 +37,21 @@ MCP Guardian 是 **调用前** 的策略网关：
 git clone https://github.com/Ailian0206/mcp-guardian.git
 cd mcp-guardian
 bash scripts/install.sh          # 一键写入 Cursor / Codex MCP
-bash scenarios/a1-a8.sh
+bash scenarios/a1-a8.sh          # 四种动作 + 验收
+bash scenarios/ide-smoke.sh      # 会话内 confirm_code 闭环
+bash scenarios/real-filesystem.sh # 官方 Filesystem 下游
 pnpm test:e2e                    # 可选 Web smoke
-pnpm guardian approvals list     # 本机审批（主路径，非 Web）
 ```
 
-红队六场景见 `scenarios/redteam-six.sh`。作品集条目：Evidence Graph → Work → MCP Guardian。
+真实下游安装：
+
+```bash
+pnpm build
+node packages/gateway/dist/cli.js install --cursor \
+  --profile filesystem --workspace /ABS/PATH/TO/DIR
+```
+
+红队六场景：`scenarios/redteam-six.sh`。
 
 ## 作品集定位
 
@@ -48,8 +61,11 @@ pnpm guardian approvals list     # 本机审批（主路径，非 Web）
 2. **Evidence Graph** — 可追溯研究  
 3. **MCP Guardian** — Agent 工具调用前治理  
 
+本仓 Web（`pnpm dev:web` → `:3040`）讲清价值、安装、FAQ、策略试跑；Evidence Graph Work 页条目另仓维护。
+
 ## 已知边界（诚实披露）
 
-- Week 3/4 Dashboard 默认本地 cookie 会话，未强制 Supabase OAuth  
-- PR 审核由 Claude `/pr-review` 替代 Bugbot（见 `scripts/pr-gate.sh`）  
-- Production 部署（Vercel）需维护者账号操作；本地验收不依赖云
+- 会话内 `guardian_decide` 不是与 Agent 密码学隔离的独立信道；依赖外层工具确认 UI + `confirm_code`  
+- `/app/*` Dashboard 代码保留，但不是日常主路径  
+- Production 部署（Vercel）需维护者账号；本地验收不依赖云  
+- PR 审核由 Claude `/pr-review` 替代 Bugbot（见 `scripts/pr-gate.sh`）
