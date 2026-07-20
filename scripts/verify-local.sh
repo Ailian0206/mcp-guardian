@@ -22,7 +22,8 @@ for path in / /faq /demo /login; do
 done
 code=$(curl -sS -o /dev/null -w "%{http_code}" "http://127.0.0.1:3040/app" || echo err)
 if [[ "$code" == "307" || "$code" == "302" || "$code" == "303" ]]; then ok "/app ${code}"; else bad "/app ${code}"; fi
-curl -sS http://127.0.0.1:3040/faq | grep -q '<h1>常见问题</h1>' && ok "faq h1" || bad "faq h1"
+# 允许 h1 带 class/style（里程碑 B 后不再是裸 <h1>…</h1>）
+curl -sS http://127.0.0.1:3040/faq | grep -Eq '<h1[^>]*>常见问题</h1>' && ok "faq h1" || bad "faq h1"
 curl -sS http://127.0.0.1:3040/ | grep -q '一键安装' && ok "home install" || bad "home install"
 curl -sS http://127.0.0.1:3040/demo | grep -q '现场试跑' && ok "demo live" || bad "demo live"
 out=$(curl -sS -X POST http://127.0.0.1:3040/api/demo/eval -H 'content-type: application/json' \
