@@ -14,7 +14,7 @@
 | 3 | 会话内 `confirm_code` + `guardian_decide` | 已完成 |
 | 4 | Web = 介绍 / 安装 / FAQ / 试跑（非审批台） | 已完成（PR #12） |
 | 5 | Evidence Graph Work 页讲清主路径 | **未做**（需点名才动 EG，非本仓） |
-| 6 | GitHub Pages 公开说明书 | 进行中 |
+| 6 | GitHub Pages 公开说明书 | 已完成 |
 
 ## 已合里程碑
 
@@ -23,7 +23,7 @@
 | MVP 主路径 | 安装、策略、会话内审批 | #9 |
 | 里程碑 A | 官方 Filesystem 真实下游 | #11 |
 | 里程碑 B（本仓） | Web 说明书门面 + 文档对齐 | #12 |
-| Pages | Web 静态导出 + GitHub Pages | — |
+| Pages | Web 静态导出 + GitHub Pages | [#13](https://github.com/Ailian0206/mcp-guardian/pull/13) |
 
 ## 默认下一步
 
