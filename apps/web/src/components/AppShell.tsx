@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 
 const shell: CSSProperties = {
   minHeight: "100dvh",
@@ -57,7 +58,7 @@ export function AppShell({
             gap: 16,
           }}
         >
-          <a
+          <Link
             href="/"
             style={{
               fontWeight: 700,
@@ -68,7 +69,7 @@ export function AppShell({
             }}
           >
             MCP Guardian
-          </a>
+          </Link>
           <nav
             style={{
               display: "flex",
@@ -79,15 +80,15 @@ export function AppShell({
           >
             {nav ?? (
               <>
-                <a href="/#how" style={linkStyle}>
+                <Link href="/#how" style={linkStyle}>
                   怎么用
-                </a>
-                <a href="/faq" style={linkStyle}>
+                </Link>
+                <Link href="/faq" style={linkStyle}>
                   FAQ
-                </a>
-                <a href="/demo" style={linkStyle}>
+                </Link>
+                <Link href="/demo" style={linkStyle}>
                   试跑策略
-                </a>
+                </Link>
                 <a
                   href="https://github.com/Ailian0206/mcp-guardian"
                   target="_blank"

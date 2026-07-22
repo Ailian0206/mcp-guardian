@@ -1,30 +1,31 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { LiveEvalPanel } from "@/components/LiveEvalPanel";
 import {
   ACCEPTANCE_CHECKLIST,
   DEMO_CASE_META,
 } from "@/lib/demo-cases";
-import { computeActionStats, seedDemoFixtures } from "@/lib/store";
+import { listPublicDemoAudits } from "@/lib/demo-fixtures";
+import { computeActionStats } from "@/lib/store";
 
 /** 公开试跑页：帮助理解四种动作；不导向 Dashboard 审批 */
 export default function DemoPage() {
-  const store = seedDemoFixtures();
-  const demos = store.audits.filter((a) => a.owner === "public");
+  const demos = listPublicDemoAudits();
   const stats = computeActionStats(demos);
 
   return (
     <AppShell
       nav={
         <>
-          <a href="/" style={navLink}>
+          <Link href="/" style={navLink}>
             首页
-          </a>
-          <a href="/faq" style={navLink}>
+          </Link>
+          <Link href="/faq" style={navLink}>
             FAQ
-          </a>
-          <a href="/#install" style={navLink}>
+          </Link>
+          <Link href="/#install" style={navLink}>
             安装
-          </a>
+          </Link>
         </>
       }
     >
@@ -82,7 +83,7 @@ export default function DemoPage() {
             const meta = DEMO_CASE_META[item.id];
             return (
               <li key={item.id} className="mg-faq-item">
-                <a
+                <Link
                   href={`/demo/${item.id}`}
                   style={{ color: "inherit", textDecoration: "none", display: "block" }}
                 >
@@ -103,7 +104,7 @@ export default function DemoPage() {
                   <p style={{ margin: "8px 0 0", color: "var(--muted)", lineHeight: 1.5 }}>
                     {meta?.story ?? item.reasons.join("；")}
                   </p>
-                </a>
+                </Link>
               </li>
             );
           })}

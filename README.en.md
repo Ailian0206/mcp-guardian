@@ -3,6 +3,7 @@
 Local MCP policy middleware for **Cursor / Codex**: allow / deny / redact before `tools/call`; high-risk actions are approved **in the same Agent chat** via `confirm_code` + `guardian_decide`.
 
 Repository: <https://github.com/Ailian0206/mcp-guardian>  
+Live brochure: <https://ailian0206.github.io/mcp-guardian/> (GitHub Pages; no Dashboard API)  
 Decision source: [`docs/product-redesign-2026-07-16.md`](docs/product-redesign-2026-07-16.md)
 
 ## Status
@@ -55,6 +56,7 @@ bash scenarios/ide-smoke.sh
 bash scenarios/real-filesystem.sh
 
 pnpm dev:web          # http://127.0.0.1:3040 → /  /faq  /demo
+pnpm build:pages      # static export → apps/web/out (GitHub Pages)
 pnpm test:e2e
 ```
 

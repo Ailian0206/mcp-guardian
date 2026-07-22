@@ -8,6 +8,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "**/.next/**",
+      "**/out/**",
+      "**/.pages-stash/**",
       "**/.turbo/**",
       "**/next-env.d.ts",
     ],

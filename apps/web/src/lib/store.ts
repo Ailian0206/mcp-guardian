@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { loadPolicyFromYaml } from "@mcp-guardian/policy-engine";
+import { DEFAULT_FAIL_CLOSED_POLICY_YAML } from "@/lib/default-policy-yaml";
+import { listPublicDemoAudits } from "@/lib/demo-fixtures";
 
 export type CloudApproval = {
   id: string;
@@ -48,57 +50,9 @@ function storePath(): string {
   return path.join(dataDir(), "store.json");
 }
 
-const defaultPolicy = `version: 1
-mode: fail_closed
-pre_redact: false
-defaults:
-  approval_ttl_seconds: 300
-  risk_threshold_for_approval: 70
-rules:
-  - id: allow-workspace-read
-    when:
-      server: demo-fs
-      tool: read_file
-      args:
-        path: { matches: "^/workspace/" }
-    action: allow
-    risk: 10
-    reason: "允许工作区读取"
-  - id: deny-system-write
-    when:
-      server: demo-fs
-      tool: write_file
-      args:
-        path: { matches: "^/(etc|var|usr)/" }
-    action: deny
-    risk: 95
-    reason: "拒绝写入系统目录"
-  - id: redact-http-secrets
-    when:
-      server: demo-http
-      tool: fetch
-    action: redact
-    risk: 60
-    redact:
-      - path: headers.authorization
-        replace: "***REDACTED***"
-      - path: url
-        pattern: "(api_key|token|secret)=([^&]+)"
-        replace: "$1=***REDACTED***"
-  - id: approve-dangerous-shell
-    when:
-      server: demo-shell
-      tool: run
-      args:
-        command: { matches: "(rm\\\\s+-rf|sudo|mkfs|dd\\\\s+if=)" }
-    action: require_approval
-    risk: 99
-    reason: "高危 shell 需要人工批准"
-`;
-
 function emptyStore(): CloudStore {
   return {
-    policies: { default: defaultPolicy },
+    policies: { default: DEFAULT_FAIL_CLOSED_POLICY_YAML },
     approvals: [],
     audits: [],
     devices: {},
@@ -159,112 +113,15 @@ export function computeActionStats(audits: CloudAudit[]): ActionStats {
 export function seedDemoFixtures(): CloudStore {
   const store = readStore();
   let dirty = false;
-  // 仅在缺失 seed 时写入，避免 /demo 请求用旧快照覆盖 sync 写入
-  if (!store.audits.some((a) => a.id === "demo-audit-1")) {
-    store.audits.unshift(
-      {
-        id: "demo-audit-1",
-        ts: new Date().toISOString(),
-        server: "demo-fs",
-        tool: "write_file",
-        action: "deny",
-        matched_rule_id: "deny-system-write",
-        risk: 95,
-        result_status: "denied",
-        args_redacted: { path: "/etc/passwd", content: "***" },
-        reasons: ["拒绝写入系统目录"],
-        owner: "public",
-      },
-      {
-        id: "demo-audit-2",
-        ts: new Date().toISOString(),
-        server: "demo-http",
-        tool: "fetch",
-        action: "redact",
-        matched_rule_id: "redact-http-secrets",
-        risk: 60,
-        result_status: "ok",
-        args_redacted: {
-          url: "https://api.example.com?api_key=***REDACTED***",
-          headers: { authorization: "***REDACTED***" },
-        },
-        reasons: ["matched rule redact-http-secrets"],
-        owner: "public",
-      },
-    );
-    dirty = true;
-  }
-  if (ensurePublicDemo(store)) dirty = true;
-  if (dirty) writeStore(store);
-  return store;
-}
-
-/** @returns 是否新增了条目（供调用方决定是否落盘） */
-function ensurePublicDemo(store: CloudStore): boolean {
-  const extras: CloudAudit[] = [
-    {
-      id: "demo-audit-3",
-      ts: new Date().toISOString(),
-      server: "demo-shell",
-      tool: "run",
-      action: "require_approval",
-      matched_rule_id: "approve-dangerous-shell",
-      risk: 99,
-      result_status: "approved_then_allowed",
-      args_redacted: { command: "rm -rf /tmp/x" },
-      reasons: ["高危 shell 需要人工批准"],
-      owner: "public",
-    },
-    {
-      id: "demo-audit-4",
-      ts: new Date().toISOString(),
-      server: "demo-fs",
-      tool: "read_file",
-      action: "allow",
-      matched_rule_id: "allow-workspace-read",
-      risk: 10,
-      result_status: "ok",
-      args_redacted: { path: "/workspace/readme.md" },
-      reasons: ["允许工作区读取"],
-      owner: "public",
-    },
-    {
-      id: "demo-audit-5",
-      ts: new Date().toISOString(),
-      server: "demo-fs",
-      tool: "read_file",
-      action: "deny",
-      matched_rule_id: null,
-      risk: 100,
-      result_status: "denied",
-      args_redacted: { path: "/tmp/bomb-1" },
-      reasons: ["no rule matched; fail_closed denies"],
-      owner: "public",
-    },
-    {
-      id: "demo-audit-6",
-      ts: new Date().toISOString(),
-      server: "demo-http",
-      tool: "fetch",
-      action: "redact",
-      matched_rule_id: "redact-http-secrets",
-      risk: 60,
-      result_status: "ok",
-      args_redacted: {
-        url: "http://169.254.169.254/latest/meta-data/?api_key=***REDACTED***",
-      },
-      reasons: ["matched rule redact-http-secrets"],
-      owner: "public",
-    },
-  ];
-  let added = false;
-  for (const item of extras) {
+  // 公开 Demo 样例来自纯数据模块；仅在缺失时写入 store，避免覆盖 sync
+  for (const item of listPublicDemoAudits()) {
     if (!store.audits.some((a) => a.id === item.id)) {
       store.audits.push(item);
-      added = true;
+      dirty = true;
     }
   }
-  return added;
+  if (dirty) writeStore(store);
+  return store;
 }
 
 /**
@@ -356,7 +213,7 @@ export function ensureUserFixtures(owner: string): CloudStore {
   }
 
   if (!store.policies.default || store.policies.default.length < 80) {
-    store.policies.default = defaultPolicy;
+    store.policies.default = DEFAULT_FAIL_CLOSED_POLICY_YAML;
     dirty = true;
   }
 

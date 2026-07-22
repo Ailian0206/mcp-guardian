@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { DemoReel } from "@/components/DemoReel";
 
@@ -77,7 +78,7 @@ export default function HomePage() {
                 >
                   看安装步骤
                 </a>
-                <a
+                <Link
                   href="/demo"
                   className="mg-cta"
                   style={{
@@ -86,7 +87,7 @@ export default function HomePage() {
                   }}
                 >
                   浏览器里试跑策略
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -253,9 +254,9 @@ node packages/gateway/dist/cli.js install --cursor \\
           ))}
         </div>
         <div style={{ marginTop: 24 }}>
-          <a href="/faq" className="mg-cta mg-cta-secondary">
+          <Link href="/faq" className="mg-cta mg-cta-secondary">
             查看完整 FAQ
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -269,9 +270,9 @@ node packages/gateway/dist/cli.js install --cursor \\
           <a href="#install" className="mg-cta mg-cta-primary">
             回到安装
           </a>
-          <a href="/demo" className="mg-cta mg-cta-secondary">
+          <Link href="/demo" className="mg-cta mg-cta-secondary">
             去试跑四种动作
-          </a>
+          </Link>
           <a
             href="https://github.com/Ailian0206/mcp-guardian"
             className="mg-cta mg-cta-secondary"

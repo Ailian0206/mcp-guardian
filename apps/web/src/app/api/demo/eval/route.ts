@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { evaluate, loadPolicyFromYaml } from "@mcp-guardian/policy-engine";
-import { readStore } from "@/lib/store";
+import { DEFAULT_FAIL_CLOSED_POLICY_YAML } from "@/lib/default-policy-yaml";
 
 function loadDefaultPolicyYaml(): string {
   // monorepo: apps/web → ../../policies/default.fail-closed.yaml
@@ -13,8 +13,7 @@ function loadDefaultPolicyYaml(): string {
   if (fs.existsSync(fromRepo)) {
     return fs.readFileSync(fromRepo, "utf8");
   }
-  // 兜底：用 store 里的 YAML（可能较短）
-  return readStore().policies.default ?? "";
+  return DEFAULT_FAIL_CLOSED_POLICY_YAML;
 }
 
 /** 公开试跑：用真实 policy-engine 评估，供 Demo 页验收 */

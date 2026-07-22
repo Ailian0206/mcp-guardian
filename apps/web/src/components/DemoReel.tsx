@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { publicUrl } from "@/lib/base-path";
 
 /** 尊重 reduced-motion：默认不自动播；提供暂停/播放 */
 export function DemoReel() {
@@ -37,10 +38,10 @@ export function DemoReel() {
         muted
         loop
         playsInline
-        poster="/demo-walkthrough.gif"
+        poster={publicUrl("/demo-walkthrough.gif")}
         style={{ width: "100%", display: "block" }}
       >
-        <source src="/demo-walkthrough.webm" type="video/webm" />
+        <source src={publicUrl("/demo-walkthrough.webm")} type="video/webm" />
       </video>
       <button
         type="button"
