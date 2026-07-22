@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { evaluate, loadPolicyFromYaml } from "@mcp-guardian/policy-engine";
 import { LIVE_TRY_PRESETS } from "@/lib/demo-cases";
+import { DEFAULT_FAIL_CLOSED_POLICY_YAML } from "@/lib/default-policy-yaml";
 
 type EvalResult = {
   ok?: boolean;
@@ -16,6 +18,7 @@ type EvalResult = {
   checks?: { secret_not_in_redacted_args: boolean };
 };
 
+/** 浏览器内跑真实 policy-engine；Pages 静态站无 API 也能试跑。 */
 export function LiveEvalPanel() {
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<EvalResult | null>(null);
@@ -28,17 +31,26 @@ export function LiveEvalPanel() {
     setLastExpect(preset.expectAction);
     setResult(null);
     try {
-      const res = await fetch("/api/demo/eval", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          server: preset.server,
-          tool: preset.tool,
-          args: preset.args,
-        }),
+      const policy = loadPolicyFromYaml(DEFAULT_FAIL_CLOSED_POLICY_YAML);
+      const decision = evaluate(policy, {
+        server: preset.server,
+        tool: preset.tool,
+        args: preset.args,
       });
-      const data = (await res.json()) as EvalResult;
-      setResult(data);
+      const dumped = JSON.stringify(decision.redacted_args ?? {});
+      const leaked =
+        dumped.includes("sk-live-secret") || dumped.includes("Bearer sk-live");
+      setResult({
+        ok: true,
+        decision: {
+          action: decision.action,
+          risk: decision.risk,
+          matched_rule_id: decision.matched_rule_id,
+          reasons: decision.reasons,
+          redacted_args: decision.redacted_args,
+        },
+        checks: { secret_not_in_redacted_args: !leaked },
+      });
     } catch (err) {
       setResult({ error: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -56,8 +68,8 @@ export function LiveEvalPanel() {
     <section style={{ marginTop: 40 }}>
       <h2 style={{ fontSize: 20, marginBottom: 8 }}>现场试跑策略（真引擎）</h2>
       <p style={{ color: "var(--muted)", marginBottom: 16, lineHeight: 1.6 }}>
-        点下面按钮会调用本机 <code>/api/demo/eval</code>，用仓库默认 fail-closed
-        策略即时评估——不是写死的假数据。
+        点下面按钮会在浏览器里用默认 fail-closed 策略即时评估（与仓库{" "}
+        <code>policies/default.fail-closed.yaml</code> 对齐）——不是写死的假数据。
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {LIVE_TRY_PRESETS.map((p) => (

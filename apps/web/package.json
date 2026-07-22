@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3040",
     "build": "next build",
+    "build:pages": "node scripts/build-pages.mjs",
     "start": "next start --port 3040",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",

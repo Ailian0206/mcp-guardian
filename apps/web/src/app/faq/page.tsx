@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 
 const groups: { title: string; items: { q: string; a: string }[] }[] = [
@@ -72,15 +73,15 @@ export default function FaqPage() {
     <AppShell
       nav={
         <>
-          <a href="/" style={navLink}>
+          <Link href="/" style={navLink}>
             首页
-          </a>
-          <a href="/#how" style={navLink}>
+          </Link>
+          <Link href="/#how" style={navLink}>
             怎么用
-          </a>
-          <a href="/demo" style={navLink}>
+          </Link>
+          <Link href="/demo" style={navLink}>
             试跑策略
-          </a>
+          </Link>
         </>
       }
     >
@@ -120,9 +121,9 @@ export default function FaqPage() {
       ))}
 
       <section style={{ marginTop: 48 }}>
-        <a href="/#install" className="mg-cta mg-cta-primary">
+        <Link href="/#install" className="mg-cta mg-cta-primary">
           去看安装步骤
-        </a>
+        </Link>
       </section>
     </AppShell>
   );

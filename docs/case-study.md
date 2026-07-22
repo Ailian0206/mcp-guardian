@@ -1,7 +1,8 @@
 # Case Study：MCP Guardian
 
-> 日期：2026-07-17  
+> 日期：2026-07-22  
 > 状态：MVP + 真实下游（Filesystem）已合入；Web 为说明书 / 作品集门面  
+> 在线：<https://ailian0206.github.io/mcp-guardian/>  
 > 决策：[`product-redesign-2026-07-16.md`](./product-redesign-2026-07-16.md)  
 > 演示：[`assets/demo-walkthrough.webm`](./assets/demo-walkthrough.webm)
 
@@ -61,7 +62,7 @@ node packages/gateway/dist/cli.js install --cursor \
 2. **Evidence Graph** — 可追溯研究  
 3. **MCP Guardian** — Agent 工具调用前治理  
 
-本仓 Web（`pnpm dev:web` → `:3040`）讲清价值、安装、FAQ、策略试跑；Evidence Graph Work 页条目另仓维护。
+本仓 Web（在线 <https://ailian0206.github.io/mcp-guardian/>；本地 `pnpm dev:web` → `:3040`）讲清价值、安装、FAQ、策略试跑；Evidence Graph Work 页条目另仓维护。
 
 ## 已知边界（诚实披露）
 

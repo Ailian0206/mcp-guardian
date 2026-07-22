@@ -11,6 +11,7 @@
     "test": "vitest run && pnpm --filter @mcp-guardian/web test",
     "test:e2e": "pnpm --filter @mcp-guardian/web test:e2e",
     "build": "tsc -b && pnpm --filter @mcp-guardian/web build",
+    "build:pages": "tsc -b && pnpm --filter @mcp-guardian/web build:pages",
     "dev:gateway": "pnpm --filter @mcp-guardian/gateway dev",
     "dev:web": "pnpm --filter @mcp-guardian/web dev",
     "guardian": "node ./packages/gateway/dist/cli.js",

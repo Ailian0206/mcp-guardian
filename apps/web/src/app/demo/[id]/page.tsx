@@ -1,7 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { DEMO_CASE_META } from "@/lib/demo-cases";
-import { seedDemoFixtures } from "@/lib/store";
+import { getPublicDemoAudit, listPublicDemoAudits } from "@/lib/demo-fixtures";
+
+export function generateStaticParams() {
+  return listPublicDemoAudits().map((item) => ({ id: item.id }));
+}
 
 export default async function DemoDetailPage({
   params,
@@ -9,8 +14,7 @@ export default async function DemoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const store = seedDemoFixtures();
-  const item = store.audits.find((a) => a.id === id && a.owner === "public");
+  const item = getPublicDemoAudit(id);
   if (!item) notFound();
   const meta = DEMO_CASE_META[item.id];
 
@@ -18,15 +22,15 @@ export default async function DemoDetailPage({
     <AppShell
       nav={
         <>
-          <a href="/" style={navLink}>
+          <Link href="/" style={navLink}>
             首页
-          </a>
-          <a href="/demo" style={navLink}>
+          </Link>
+          <Link href="/demo" style={navLink}>
             ← Demo
-          </a>
-          <a href="/faq" style={navLink}>
+          </Link>
+          <Link href="/faq" style={navLink}>
             FAQ
-          </a>
+          </Link>
         </>
       }
     >

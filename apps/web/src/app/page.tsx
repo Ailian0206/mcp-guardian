@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { DemoReel } from "@/components/DemoReel";
 
@@ -77,7 +78,7 @@ export default function HomePage() {
                 >
                   看安装步骤
                 </a>
-                <a
+                <Link
                   href="/demo"
                   className="mg-cta"
                   style={{
@@ -86,7 +87,7 @@ export default function HomePage() {
                   }}
                 >
                   浏览器里试跑策略
-                </a>
+                </Link>
               </div>
             </div>
 

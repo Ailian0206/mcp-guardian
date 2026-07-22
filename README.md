@@ -3,6 +3,7 @@
 装进 **Cursor / Codex** 的本地 MCP 策略中间层：在 Agent 调用工具前 allow / deny / redact；高危在 **同一次 Agent 对话** 里批准。
 
 仓库：<https://github.com/Ailian0206/mcp-guardian>  
+在线说明书：<https://ailian0206.github.io/mcp-guardian/>（GitHub Pages 静态站：介绍 / FAQ / Demo；**不含** Dashboard API）  
 作品集：Evidence Graph → Work → MCP Guardian  
 决策文档：[`docs/product-redesign-2026-07-16.md`](docs/product-redesign-2026-07-16.md)
 
@@ -52,13 +53,17 @@ node packages/gateway/dist/cli.js install --cursor --profile filesystem --worksp
 
 ## Web（说明书 / 作品集门面）
 
+在线：<https://ailian0206.github.io/mcp-guardian/>
+
 ```bash
 pnpm dev:web   # http://127.0.0.1:3040  → /  /faq  /demo
+pnpm build:pages  # 静态导出 → apps/web/out（供 GitHub Pages）
 ```
 
 - `/`：价值、安装步骤、日常流程、真实下游、与 Trace 差异、FAQ 摘要、演示录屏  
 - `/faq`：入门 / 日常 / 真实下游 / 排错  
-- `/demo`：浏览器试跑策略 + 只读审计回放（**不是**审批台）
+- `/demo`：浏览器内现场试跑策略 + 只读审计回放（**不是**审批台）  
+- `/app`：可选 Dashboard（仅本地 / 非 Pages；需服务端 API）
 
 ## 开发验收
 
